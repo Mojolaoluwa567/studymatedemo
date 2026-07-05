@@ -24,6 +24,7 @@ flask-cors==6.0.5
 Flask-JWT-Extended==4.7.4
 Flask-Limiter==4.1.1
 Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.7
 fsspec==2025.9.0
 google-auth==2.54.0
 google-genai==2.8.0
