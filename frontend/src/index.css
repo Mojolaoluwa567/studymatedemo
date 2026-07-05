@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Space+Mono:wght@400;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Light theme (default) - bright, cool slate/indigo palette */
+:root {
+  --color-bg: 248 250 252;
+  --color-surface: 255 255 255;
+  --color-surface-light: 241 245 249;
+  --color-border: 226 232 240;
+  --color-accent: 99 102 241;
+  --color-accent-soft: 238 242 255;
+  --color-correct: 5 150 105;
+  --color-incorrect: 220 38 38;
+  --color-ink: 15 23 42;
+  --color-muted: 100 116 139;
+}
+
+/* Dark theme - cool indigo/blue-black palette */
+.dark {
+  --color-bg: 9 11 18;
+  --color-surface: 20 23 36;
+  --color-surface-light: 29 33 50;
+  --color-border: 41 46 66;
+  --color-accent: 129 140 248;
+  --color-accent-soft: 45 41 84;
+  --color-correct: 52 211 153;
+  --color-incorrect: 248 113 113;
+  --color-ink: 241 245 249;
+  --color-muted: 148 163 184;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  background-color: rgb(var(--color-bg));
+  background-image: radial-gradient(
+    circle at top right,
+    rgb(var(--color-accent) / 0.10),
+    transparent 55%
+  );
+  background-attachment: fixed;
+  color: rgb(var(--color-ink));
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.font-mono {
+  font-family: "Space Mono", monospace;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

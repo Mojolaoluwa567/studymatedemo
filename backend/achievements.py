@@ -1,0 +1,126 @@
+"""
+Achievement definitions and the logic to check/unlock them.
+
+Achievements are intentionally derived from data that already exists
+(Attempt, Answer, StudySession) - no extra tracking tables beyond the
+Achievement unlock record itself.
+"""
+
+from datetime import datetime, timedelta
+
+from extensions import db
+from models import Attempt, StudySession, Achievement, Quiz
+
+
+ACHIEVEMENTS = {
+    "first_quiz": {
+        "title": "First Quiz Completed",
+        "description": "Complete your first quiz.",
+    },
+    "hundred_questions": {
+        "title": "Centurion",
+        "description": "Answer 100 questions in total.",
+    },
+    "perfect_score": {
+        "title": "Perfect Score",
+        "description": "Score 100% on a quiz.",
+    },
+    "seven_day_streak": {
+        "title": "7-Day Streak",
+        "description": "Study or take a quiz for 7 days in a row.",
+    },
+}
+
+
+def compute_stats(user_id):
+    """Shared stats used by /profile/stats and achievement checks."""
+    attempts = (
+        Attempt.query.filter_by(user_id=user_id)
+        .filter(Attempt.submitted_at.isnot(None))
+        .all()
+    )
+    total_quizzes = len(attempts)
+    total_questions = sum(a.quiz.num_questions for a in attempts)
+    average_score = (
+        round(sum(a.percentage for a in attempts) / total_quizzes, 1)
+        if total_quizzes
+        else 0
+    )
+    has_perfect_score = any(a.percentage == 100 for a in attempts)
+
+    study_dates = {
+        s.started_at.date()
+        for s in StudySession.query.filter_by(user_id=user_id).all()
+    }
+    attempt_dates = {a.submitted_at.date() for a in attempts}
+    active_dates = study_dates | attempt_dates
+
+    streak = 0
+    today = datetime.utcnow().date()
+    cursor = today
+    if cursor not in active_dates:
+        cursor -= timedelta(days=1)
+    while cursor in active_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    return {
+        "total_quizzes": total_quizzes,
+        "total_questions_answered": total_questions,
+        "average_score": average_score,
+        "current_streak": streak,
+        "has_perfect_score": has_perfect_score,
+    }
+
+
+def check_and_unlock_achievements(user_id):
+    """
+    Checks current stats against achievement criteria, unlocks any newly
+    earned ones (persisting Achievement rows), and returns a list of
+    {key, title, description} for achievements unlocked by THIS call.
+    """
+    stats = compute_stats(user_id)
+    existing_keys = {
+        a.key for a in Achievement.query.filter_by(user_id=user_id).all()
+    }
+
+    to_unlock = []
+    if stats["total_quizzes"] >= 1 and "first_quiz" not in existing_keys:
+        to_unlock.append("first_quiz")
+    if (
+        stats["total_questions_answered"] >= 100
+        and "hundred_questions" not in existing_keys
+    ):
+        to_unlock.append("hundred_questions")
+    if stats["has_perfect_score"] and "perfect_score" not in existing_keys:
+        to_unlock.append("perfect_score")
+    if stats["current_streak"] >= 7 and "seven_day_streak" not in existing_keys:
+        to_unlock.append("seven_day_streak")
+
+    newly_unlocked = []
+    for key in to_unlock:
+        db.session.add(Achievement(user_id=user_id, key=key))
+        newly_unlocked.append({"key": key, **ACHIEVEMENTS[key]})
+
+    if newly_unlocked:
+        db.session.commit()
+
+    return newly_unlocked
+
+
+def get_achievements_for_user(user_id):
+    """Returns every defined achievement with unlocked status/date."""
+    unlocked = {
+        a.key: a.unlocked_at
+        for a in Achievement.query.filter_by(user_id=user_id).all()
+    }
+    return [
+        {
+            "key": key,
+            "title": info["title"],
+            "description": info["description"],
+            "unlocked": key in unlocked,
+            "unlocked_at": unlocked[key].isoformat() if key in unlocked else None,
+        }
+        for key, info in ACHIEVEMENTS.items()
+    ]
