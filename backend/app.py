@@ -96,21 +96,15 @@ app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 # The tradeoff is CSRF exposure, which JWT_COOKIE_CSRF_PROTECT closes: every
 # state-changing request must also carry a CSRF token (delivered as a
 # separate, JS-readable cookie) matching what's embedded in the JWT.
-app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
-app.config["JWT_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") == "production"
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]
+app.config["JWT_QUERY_STRING_NAME"] = "token"
 # SameSite=None is required when frontend and backend are on different
 # domains (e.g. Vercel frontend + Render backend) - the browser won't send
 # the cookie on cross-site requests otherwise, which would make login
 # appear to succeed but every subsequent API call silently fail to
 # authenticate. None requires Secure=True (HTTPS), which is only true in
 # production - use Lax locally where both run on localhost (same-site).
-app.config["JWT_COOKIE_SAMESITE"] = (
-    "None" if os.environ.get("FLASK_ENV") == "production" else "Lax"
-)
-app.config["JWT_COOKIE_CSRF_PROTECT"] = True
-app.config["JWT_CSRF_IN_COOKIES"] = True
-app.config["JWT_ACCESS_COOKIE_PATH"] = "/"
-app.config["JWT_REFRESH_COOKIE_PATH"] = "/"
+
 # The PDF viewer iframe (Read tab) sends the auth cookie automatically as
 # part of the normal browser request - no query-string token workaround
 # needed anymore now that auth lives in a cookie rather than a header the
@@ -257,12 +251,11 @@ def google_auth():
     from flask_jwt_extended import set_access_cookies
 
     access_token = create_access_token(identity=str(user.id))
-    response = jsonify(
+    return jsonify(
+        access_token=access_token,
         username=user.username,
         role=user.role,
     )
-    set_access_cookies(response, access_token)
-    return response
 
 
 @app.route("/health", methods=["GET"])
@@ -323,8 +316,6 @@ def signup():
 
 @app.route("/login", methods=["POST"])
 def login():
-    from flask_jwt_extended import set_access_cookies
-
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
@@ -335,24 +326,18 @@ def login():
     user = User.query.filter_by(username=username).first()
     if user and bcrypt.check_password_hash(user.password, password):
         access_token = create_access_token(identity=str(user.id))
-        response = jsonify(
-            message="Login successful", username=user.username, role=user.role
+        return jsonify(
+            message="Login successful",
+            access_token=access_token,
+            username=user.username,
+            role=user.role,
         )
-        set_access_cookies(response, access_token)
-        return response
     return jsonify(error="Invalid credentials"), 401
 
 
 @app.route("/logout", methods=["POST"])
 def logout():
-    """Clears the auth cookie. The frontend calls this on logout instead
-    of just deleting a localStorage key, since the token now lives in an
-    HttpOnly cookie the frontend can't touch directly."""
-    from flask_jwt_extended import unset_jwt_cookies
-
-    response = jsonify(message="Logged out")
-    unset_jwt_cookies(response)
-    return response
+    return jsonify(message="Logged out")
 
 
 @app.route("/profile", methods=["GET"])

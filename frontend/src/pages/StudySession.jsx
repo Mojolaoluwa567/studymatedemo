@@ -2,8 +2,17 @@ import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  BookOpen, FileText, Lightbulb, LayoutGrid, Sparkles, Download, Target,
-  Timer, Play, Pause, CheckCircle,
+  BookOpen,
+  FileText,
+  Lightbulb,
+  LayoutGrid,
+  Sparkles,
+  Download,
+  Target,
+  Timer,
+  Play,
+  Pause,
+  CheckCircle,
 } from "lucide-react";
 import { api, API_URL } from "../api";
 import Layout from "../components/Layout";
@@ -146,13 +155,18 @@ const StudySession = () => {
   const handleDownloadStudyGuide = async () => {
     setDownloadingGuide(true);
     try {
-      const response = await fetch(`${API_URL}/documents/${id}/export-study-guide`, {
-        credentials: "include",
-      });
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_URL}/documents/${id}/export-study-guide`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         throw new Error(
-          body.error || "Generate a study aid first (Summary, Key Concepts, or Flashcards), then try downloading again."
+          body.error ||
+            "Generate a study aid first (Summary, Key Concepts, or Flashcards), then try downloading again.",
         );
       }
       const blob = await response.blob();
@@ -269,11 +283,14 @@ const StudySession = () => {
         ))}
       </div>
 
-      {tab === "read" && (
-        document_.has_pdf ? (
-          <div className="bg-surface border border-border rounded-xl overflow-hidden" style={{ height: "75vh" }}>
+      {tab === "read" &&
+        (document_.has_pdf ? (
+          <div
+            className="bg-surface border border-border rounded-xl overflow-hidden"
+            style={{ height: "75vh" }}
+          >
             <iframe
-              src={`${API_URL}/documents/${id}/file`}
+              src={`${API_URL}/documents/${id}/file?token=${encodeURIComponent(localStorage.getItem("token") || "")}`}
               title={document_.title}
               className="w-full h-full"
               style={{ border: "none" }}
@@ -283,8 +300,7 @@ const StudySession = () => {
           <div className="bg-surface border border-border rounded-xl p-6 max-h-[65vh] overflow-y-auto whitespace-pre-wrap leading-relaxed text-sm">
             {document_.text_content}
           </div>
-        )
-      )}
+        ))}
 
       {tab === "summary" && (
         <div className="bg-surface border border-border rounded-xl p-6">
@@ -375,7 +391,7 @@ const StudySession = () => {
                     setTabError("");
                     try {
                       const data = await api.get(
-                        `/documents/${id}/explainer?force=1`
+                        `/documents/${id}/explainer?force=1`,
                       );
                       setExplainerHtml(data.explainer_html);
                     } catch (err) {
@@ -405,35 +421,58 @@ const StudySession = () => {
         <div>
           {tabLoading ? (
             <div className="space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-10 bg-surface border border-border rounded-lg animate-pulse" />)}
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-10 bg-surface border border-border rounded-lg animate-pulse"
+                />
+              ))}
             </div>
           ) : !mastery || mastery.length === 0 ? (
             <div className="text-center py-12 border border-dashed border-border rounded-xl">
               <Target size={28} className="text-muted mx-auto mb-3" />
               <p className="text-muted text-sm mb-1">No mastery data yet.</p>
-              <p className="text-xs text-muted">Take a few quizzes on this document first.</p>
+              <p className="text-xs text-muted">
+                Take a few quizzes on this document first.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-muted font-mono mb-4">
-                Based on all your quiz attempts on this document. Sorted weakest first.
+                Based on all your quiz attempts on this document. Sorted weakest
+                first.
               </p>
               {mastery.map((t) => {
                 const pct = t.mastery_percentage;
-                const color = pct >= 70 ? "bg-correct" : pct >= 40 ? "bg-accent" : "bg-incorrect";
+                const color =
+                  pct >= 70
+                    ? "bg-correct"
+                    : pct >= 40
+                      ? "bg-accent"
+                      : "bg-incorrect";
                 return (
-                  <div key={t.topic} className="bg-surface border border-border rounded-xl p-4">
+                  <div
+                    key={t.topic}
+                    className="bg-surface border border-border rounded-xl p-4"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium">{t.topic}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted font-mono">{t.questions_seen} questions</span>
-                        <span className={`font-mono text-sm font-semibold ${pct >= 70 ? "text-correct" : pct >= 40 ? "text-accent" : "text-incorrect"}`}>
+                        <span className="text-xs text-muted font-mono">
+                          {t.questions_seen} questions
+                        </span>
+                        <span
+                          className={`font-mono text-sm font-semibold ${pct >= 70 ? "text-correct" : pct >= 40 ? "text-accent" : "text-incorrect"}`}
+                        >
                           {pct}%
                         </span>
                       </div>
                     </div>
                     <div className="h-2 bg-border rounded-full overflow-hidden">
-                      <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                      <div
+                        className={`h-full ${color} rounded-full transition-all`}
+                        style={{ width: `${pct}%` }}
+                      />
                     </div>
                   </div>
                 );

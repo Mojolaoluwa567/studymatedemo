@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { RotateCcw, TrendingUp, Lightbulb, CheckCircle, XCircle, MinusCircle, Download } from "lucide-react";
+import {
+  RotateCcw,
+  TrendingUp,
+  Lightbulb,
+  CheckCircle,
+  XCircle,
+  MinusCircle,
+  Download,
+} from "lucide-react";
 import Layout from "../components/Layout";
 import ScoreStamp from "../components/ScoreStamp";
 import { api, formatDuration, difficultyLabel, API_URL } from "../api";
@@ -53,9 +61,13 @@ const Results = () => {
   const handleDownloadPdf = async (targetAttemptId) => {
     setDownloadingPdf(true);
     try {
-      const response = await fetch(`${API_URL}/attempts/${targetAttemptId}/export-pdf`, {
-        credentials: "include",
-      });
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_URL}/attempts/${targetAttemptId}/export-pdf`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.error || "Could not generate the PDF. Try again.");
@@ -102,10 +114,10 @@ const Results = () => {
   }
 
   const hasMissedMarks = result.breakdown.some(
-    (item) => item.score_awarded < item.marks
+    (item) => item.score_awarded < item.marks,
   );
   const hasUnexplained = result?.breakdown?.some(
-    (item) => item.score_awarded < item.marks && !item.explanation
+    (item) => item.score_awarded < item.marks && !item.explanation,
   );
 
   return (
@@ -176,8 +188,8 @@ const Results = () => {
               {explaining
                 ? "Explaining..."
                 : hasUnexplained
-                ? "Explain my mistakes"
-                : "Mistakes explained ↓"}
+                  ? "Explain my mistakes"
+                  : "Mistakes explained ↓"}
             </button>
           )}
         </div>
@@ -190,13 +202,19 @@ const Results = () => {
           const noMarks = item.score_awarded <= 0;
 
           let badgeColor = "border-accent text-accent";
-          let StatusIcon = <MinusCircle size={16} className="text-accent shrink-0 mt-0.5" />;
+          let StatusIcon = (
+            <MinusCircle size={16} className="text-accent shrink-0 mt-0.5" />
+          );
           if (fullMarks) {
             badgeColor = "border-correct text-correct";
-            StatusIcon = <CheckCircle size={16} className="text-correct shrink-0 mt-0.5" />;
+            StatusIcon = (
+              <CheckCircle size={16} className="text-correct shrink-0 mt-0.5" />
+            );
           } else if (noMarks) {
             badgeColor = "border-incorrect text-incorrect";
-            StatusIcon = <XCircle size={16} className="text-incorrect shrink-0 mt-0.5" />;
+            StatusIcon = (
+              <XCircle size={16} className="text-incorrect shrink-0 mt-0.5" />
+            );
           }
 
           return (
@@ -208,7 +226,9 @@ const Results = () => {
                 <div className="flex items-start gap-2">
                   {StatusIcon}
                   <p className="font-medium leading-relaxed">
-                    <span className="font-mono text-accent mr-2">{idx + 1}.</span>
+                    <span className="font-mono text-accent mr-2">
+                      {idx + 1}.
+                    </span>
                     {item.question}
                   </p>
                 </div>
@@ -233,7 +253,9 @@ const Results = () => {
                         key={key}
                         className={`text-sm rounded-lg border px-3 py-1.5 ${style}`}
                       >
-                        <span className="font-mono text-muted mr-1">{key}.</span>
+                        <span className="font-mono text-muted mr-1">
+                          {key}.
+                        </span>
                         {value}
                         {key === item.user_answer && (
                           <span className="text-xs text-muted ml-2">

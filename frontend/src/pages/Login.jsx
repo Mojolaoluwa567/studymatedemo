@@ -18,7 +18,11 @@ const Login = () => {
     setLoading(true);
     try {
       const data = await api.post("/login", { username, password });
-      localStorage.setItem("studymate_session_started_at", Date.now().toString());
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem(
+        "studymate_session_started_at",
+        Date.now().toString(),
+      );
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -32,7 +36,11 @@ const Login = () => {
     setLoading(true);
     try {
       const data = await api.post("/auth/google", { credential });
-      localStorage.setItem("studymate_session_started_at", Date.now().toString());
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem(
+        "studymate_session_started_at",
+        Date.now().toString(),
+      );
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -102,7 +110,10 @@ const Login = () => {
         </form>
 
         <p className="text-center text-sm mt-4">
-          <Link to="/forgot-password" className="text-muted hover:text-accent transition-colors">
+          <Link
+            to="/forgot-password"
+            className="text-muted hover:text-accent transition-colors"
+          >
             Forgot password?
           </Link>
         </p>

@@ -1,24 +1,11 @@
 export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-/**
- * Reads the CSRF token flask-jwt-extended writes as a separate,
- * JS-readable cookie (csrf_access_token) alongside the HttpOnly JWT
- * cookie. Required on every state-changing request (POST/PUT/PATCH/
- * DELETE) once JWT_COOKIE_CSRF_PROTECT is enabled - without it the
- * backend rejects the request even though the JWT cookie itself is valid.
- */
-function getCsrfToken() {
-  const match = document.cookie.match(/csrf_access_token=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function authHeaders(extra = {}, includeCsrf = false) {
-  const headers = { ...extra };
-  if (includeCsrf) {
-    const csrf = getCsrfToken();
-    if (csrf) headers["X-CSRF-TOKEN"] = csrf;
-  }
-  return headers;
+function authHeaders(extra = {}) {
+  const token = localStorage.getItem("token");
+  return {
+    ...extra,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 }
 
 async function handle(response) {
@@ -41,8 +28,7 @@ export const api = {
   async post(path, body) {
     const res = await fetch(`${API_URL}${path}`, {
       method: "POST",
-      credentials: "include",
-      headers: authHeaders({ "Content-Type": "application/json" }, true),
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
     return handle(res);
@@ -51,7 +37,6 @@ export const api = {
   async get(path) {
     const res = await fetch(`${API_URL}${path}`, {
       method: "GET",
-      credentials: "include",
       headers: authHeaders(),
     });
     return handle(res);
@@ -60,8 +45,7 @@ export const api = {
   async upload(path, formData) {
     const res = await fetch(`${API_URL}${path}`, {
       method: "POST",
-      credentials: "include",
-      headers: authHeaders({}, true), // do NOT set Content-Type, browser sets boundary
+      headers: authHeaders(),
       body: formData,
     });
     return handle(res);
@@ -70,8 +54,7 @@ export const api = {
   async delete(path) {
     const res = await fetch(`${API_URL}${path}`, {
       method: "DELETE",
-      credentials: "include",
-      headers: authHeaders({}, true),
+      headers: authHeaders(),
     });
     return handle(res);
   },
@@ -79,8 +62,7 @@ export const api = {
   async patch(path, body) {
     const res = await fetch(`${API_URL}${path}`, {
       method: "PATCH",
-      credentials: "include",
-      headers: authHeaders({ "Content-Type": "application/json" }, true),
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
     return handle(res);
@@ -97,9 +79,7 @@ const DIFFICULTY_LABELS = {
 export function difficultyLabel(difficulty) {
   return (
     DIFFICULTY_LABELS[difficulty] ||
-    (difficulty
-      ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1)
-      : "")
+    (difficulty ? difficulty.charAt(0).toUpperCase() + difficulty.slice(1) : "")
   );
 }
 
@@ -134,14 +114,15 @@ export function formatDate(isoString) {
   });
 }
 
-/**
- * The JWT itself now lives in an HttpOnly cookie the frontend can't read
- * (that's the entire point of the F3 security change). Session-expiry
- * awareness is derived instead from the JS-readable CSRF cookie, which
- * flask-jwt-extended sets with the SAME expiry as the underlying JWT -
- * so its presence/absence and max-age are a reliable proxy without ever
- * exposing the actual token to JavaScript.
- */
-export function isLoggedIn() {
-  return Boolean(getCsrfToken());
+export function getTokenExpiry(token) {
+  if (!token) return null;
+  try {
+    const payloadPart = token.split(".")[1];
+    const json = JSON.parse(
+      atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")),
+    );
+    return json.exp ? new Date(json.exp * 1000) : null;
+  } catch {
+    return null;
+  }
 }
