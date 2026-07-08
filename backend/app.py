@@ -311,7 +311,27 @@ def signup():
     except Exception as e:
         logging.warning(f"Welcome email failed for {username}: {e}")
 
-    return jsonify(message="User created successfully")
+    access_token = create_access_token(identity=str(user.id))
+
+    # Treat signup as an implicit first login - send the same
+    # sign-in notification that /login and /auth/google send.
+    try:
+        login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+        import threading
+        threading.Thread(
+            target=send_login_notification_email,
+            args=(user.email, user.username, login_time_str),
+            daemon=True,
+        ).start()
+    except Exception as e:
+        logging.warning(f"Login notification email failed for new signup {username}: {e}")
+
+    return jsonify(
+        message="User created successfully",
+        access_token=access_token,
+        username=user.username,
+        role=user.role,
+    )
 
 
 @app.route("/login", methods=["POST"])
