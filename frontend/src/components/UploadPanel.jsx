@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { FileText, File, ClipboardPaste, Globe, SquarePlay, Mic } from "lucide-react";
+import { FileText, ClipboardPaste, Globe, SquarePlay, Mic } from "lucide-react";
 import { api } from "../api";
 
 const TABS = [
-  { key: "pdf", label: "PDF", icon: <FileText size={14} /> },
-  { key: "docx", label: "Word doc", icon: <File size={14} /> },
+  { key: "pdf", label: "Upload Document", icon: <FileText size={14} /> },
   { key: "text", label: "Paste text", icon: <ClipboardPaste size={14} /> },
   { key: "url", label: "Web page", icon: <Globe size={14} /> },
   { key: "youtube", label: "YouTube", icon: <SquarePlay size={14} /> },
@@ -12,8 +11,7 @@ const TABS = [
 ];
 
 const ACCEPT_BY_TAB = {
-  pdf: "application/pdf",
-  docx: ".docx",
+  pdf: "application/pdf,.pdf,.docx",
   audio: ".mp3,.wav,.m4a,.ogg,.webm,.flac,.aac",
 };
 
@@ -52,7 +50,7 @@ const UploadPanel = ({ onUploaded }) => {
     setUploading(true);
 
     try {
-      if (tab === "pdf" || tab === "docx") {
+      if (tab === "pdf") {
         if (!file) {
           setError("Choose a file first.");
           setUploading(false);
@@ -150,14 +148,10 @@ const UploadPanel = ({ onUploaded }) => {
           />
         </div>
 
-        {(tab === "pdf" || tab === "docx" || tab === "audio") && (
+        {(tab === "pdf" || tab === "audio") && (
           <div className="flex-1">
             <label className="block text-sm text-muted mb-1">
-              {tab === "pdf"
-                ? "PDF file"
-                : tab === "docx"
-                ? "Word document (.docx)"
-                : "Audio file"}
+              {tab === "pdf" ? "Document (PDF or Word)" : "Audio file"}
             </label>
             <input
               type="file"
@@ -228,8 +222,8 @@ const UploadPanel = ({ onUploaded }) => {
 
       {tab === "url" && (
         <p className="text-xs text-muted mt-2">
-          Works best on articles and docs pages. Pages that need JavaScript
-          to load their content aren't supported yet.
+          Works best on articles and docs pages. Pages that need JavaScript to
+          load their content aren't supported yet.
         </p>
       )}
 
@@ -243,8 +237,8 @@ const UploadPanel = ({ onUploaded }) => {
 
       {tab === "audio" && (
         <p className="text-xs text-muted mt-2">
-          Transcribed via AI. Supports mp3, wav, m4a, ogg, webm, flac, aac
-          up to 25MB. Longer recordings take longer to process.
+          Transcribed via AI. Supports mp3, wav, m4a, ogg, webm, flac, aac up to
+          25MB. Longer recordings take longer to process.
         </p>
       )}
 

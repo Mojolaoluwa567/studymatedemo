@@ -50,7 +50,7 @@ from quiz_generator import (
     transcribe_audio,
 )
 from grading import grade_mcq, grade_theory_batch, explain_mistakes_batch
-from email_utils import send_email, send_welcome_email, send_password_reset_email
+from email_utils import send_email, send_welcome_email, send_password_reset_email, send_login_notification_email, send_achievement_email
 from study_aids import generate_summary, generate_key_concepts, generate_flashcards, generate_explainer
 from achievements import (
     compute_stats,
@@ -90,25 +90,8 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB upload limit
 # token without forcing the user to log in again.
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
-# JWT is issued as an HttpOnly cookie, not returned in the response body -
-# this means it's never readable by JavaScript, so an XSS vulnerability
-# elsewhere in the app can't be used to steal a logged-in session's token.
-# The tradeoff is CSRF exposure, which JWT_COOKIE_CSRF_PROTECT closes: every
-# state-changing request must also carry a CSRF token (delivered as a
-# separate, JS-readable cookie) matching what's embedded in the JWT.
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]
 app.config["JWT_QUERY_STRING_NAME"] = "token"
-# SameSite=None is required when frontend and backend are on different
-# domains (e.g. Vercel frontend + Render backend) - the browser won't send
-# the cookie on cross-site requests otherwise, which would make login
-# appear to succeed but every subsequent API call silently fail to
-# authenticate. None requires Secure=True (HTTPS), which is only true in
-# production - use Lax locally where both run on localhost (same-site).
-
-# The PDF viewer iframe (Read tab) sends the auth cookie automatically as
-# part of the normal browser request - no query-string token workaround
-# needed anymore now that auth lives in a cookie rather than a header the
-# iframe couldn't set.
 
 FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
 
@@ -247,10 +230,15 @@ def google_auth():
                 send_welcome_email(email, username, role)
             except Exception as e:
                 logging.warning(f"Welcome email failed for Google signup {username}: {e}")
+    
+      access_token = create_access_token(identity=str(user.id))
 
-    from flask_jwt_extended import set_access_cookies
+    try:
+        login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+        send_login_notification_email(user.email, user.username, login_time_str)
+    except Exception as e:
+        logging.warning(f"Login notification email failed for Google login {user.username}: {e}")
 
-    access_token = create_access_token(identity=str(user.id))
     return jsonify(
         access_token=access_token,
         username=user.username,
@@ -317,15 +305,26 @@ def signup():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
-    username = data.get("username")
+    identifier = (data.get("username") or "").strip()
     password = data.get("password")
 
-    if not username or not password:
-        return jsonify(error="Username and password are required"), 400
+    if not identifier or not password:
+        return jsonify(error="Username/email and password are required"), 400
 
-    user = User.query.filter_by(username=username).first()
-    if user and bcrypt.check_password_hash(user.password, password):
+    if "@" in identifier:
+        user = User.query.filter_by(email=identifier.lower()).first()
+    else:
+        user = User.query.filter_by(username=identifier).first()
+
+  if user and bcrypt.check_password_hash(user.password, password):
         access_token = create_access_token(identity=str(user.id))
+
+        try:
+            login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+            send_login_notification_email(user.email, user.username, login_time_str)
+        except Exception as e:
+            logging.warning(f"Login notification email failed for {user.username}: {e}")
+
         return jsonify(
             message="Login successful",
             access_token=access_token,
@@ -594,8 +593,11 @@ def bulk_upload_documents():
 
         try:
             if source_type == "pdf":
-                text_content, page_count = extract_text_from_pdf(file.stream)
+                file_bytes = file.read()
+                import io
+                text_content, page_count = extract_text_from_pdf(io.BytesIO(file_bytes))
             else:
+                file_bytes = None
                 text_content, page_count = extract_text_from_docx(file.stream)
 
             title = file.filename.rsplit(".", 1)[0]
@@ -606,9 +608,17 @@ def bulk_upload_documents():
                 text_content=text_content,
                 page_count=page_count,
                 source_type=source_type,
+                pdf_data=file_bytes if source_type == "pdf" else None,
             )
             db.session.add(doc)
             db.session.flush()
+
+            try:
+                from rag import embed_document_chunks
+                embed_document_chunks(doc)
+            except Exception as embed_err:
+                logging.warning(f"Chunk embedding failed for bulk-uploaded document {doc.id}: {embed_err}")
+
             results.append({
                 "filename": file.filename,
                 "success": True,
@@ -2101,8 +2111,20 @@ def submit_attempt(attempt_id):
     attempt.submitted_at = datetime.utcnow()
     db.session.commit()
 
-    new_achievements = check_and_unlock_achievements(user_id)
+   new_achievements = check_and_unlock_achievements(user_id)
     breakdown = _build_breakdown(attempt)
+
+    if new_achievements:
+        user = db.session.get(User, user_id)
+        for ach in new_achievements:
+            try:
+                send_achievement_email(
+                    user.email, user.username,
+                    ach.get("name", ach.get("key", "New Achievement")),
+                    ach.get("description", "You've hit a new milestone!"),
+                )
+            except Exception as e:
+                logging.warning(f"Achievement email failed for {user.username}: {e}")
 
     return jsonify(
         attempt_id=attempt.id,
