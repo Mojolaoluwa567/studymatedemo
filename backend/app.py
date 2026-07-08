@@ -140,7 +140,6 @@ def _validate_password_strength(password):
         errors.append("one special character")
     return errors
 
-
 @app.route("/auth/google", methods=["POST"])
 @limiter.limit("20 per hour")
 def google_auth():
@@ -167,6 +166,7 @@ def google_auth():
     try:
         from google.oauth2 import id_token
         from google.auth.transport import requests as google_requests
+
         id_info = id_token.verify_oauth2_token(
             credential,
             google_requests.Request(),
@@ -192,17 +192,22 @@ def google_auth():
     if not user:
         # Check if an account exists with the same email (password signup)
         user = User.query.filter_by(email=email).first()
+
         if user:
             # Link the existing account to Google
             user.google_id = google_id
             db.session.commit()
+
         else:
             # Brand new account — derive a username from the Google name
             base_username = "".join(
-                c for c in name.lower().replace(" ", "_") if c.isalnum() or c == "_"
+                c for c in name.lower().replace(" ", "_")
+                if c.isalnum() or c == "_"
             )[:20] or "user"
+
             username = base_username
             suffix = 1
+
             while User.query.filter_by(username=username).first():
                 username = f"{base_username}{suffix}"
                 suffix += 1
@@ -210,8 +215,7 @@ def google_auth():
             if role not in ("student", "teacher"):
                 role = "student"
 
-            # Google accounts don't have a local password — set an
-            # unusable placeholder so bcrypt doesn't error on empty string
+            # Google accounts don't have a local password
             unusable_password = bcrypt.generate_password_hash(
                 secrets.token_hex(32)
             ).decode("utf-8")
@@ -223,21 +227,30 @@ def google_auth():
                 role=role,
                 google_id=google_id,
             )
+
             db.session.add(user)
             db.session.commit()
 
             try:
                 send_welcome_email(email, username, role)
             except Exception as e:
-                logging.warning(f"Welcome email failed for Google signup {username}: {e}")
-    
-      access_token = create_access_token(identity=str(user.id))
+                logging.warning(
+                    f"Welcome email failed for Google signup {username}: {e}"
+                )
+
+    access_token = create_access_token(identity=str(user.id))
 
     try:
         login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
-        send_login_notification_email(user.email, user.username, login_time_str)
+        send_login_notification_email(
+            user.email,
+            user.username,
+            login_time_str,
+        )
     except Exception as e:
-        logging.warning(f"Login notification email failed for Google login {user.username}: {e}")
+        logging.warning(
+            f"Login notification email failed for Google login {user.username}: {e}"
+        )
 
     return jsonify(
         access_token=access_token,
