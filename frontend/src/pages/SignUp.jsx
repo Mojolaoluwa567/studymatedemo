@@ -9,7 +9,10 @@ const PASSWORD_RULES = [
   { label: "Uppercase letter", test: (p) => /[A-Z]/.test(p) },
   { label: "Lowercase letter", test: (p) => /[a-z]/.test(p) },
   { label: "Number", test: (p) => /\d/.test(p) },
-  { label: "Special character", test: (p) => /[!@#$%^&*()_+\-=[\]{}|;':",./<>?]/.test(p) },
+  {
+    label: "Special character",
+    test: (p) => /[!@#$%^&*()_+\-=[\]{}|;':",./<>?]/.test(p),
+  },
 ];
 
 const SignUp = () => {
@@ -20,7 +23,7 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(
-    searchParams.get("role") === "teacher" ? "teacher" : "student"
+    searchParams.get("role") === "teacher" ? "teacher" : "student",
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,7 +36,11 @@ const SignUp = () => {
     try {
       await api.post("/signup", { username, email, password, role });
       const data = await api.post("/login", { username, password });
-      localStorage.setItem("studymate_session_started_at", Date.now().toString());
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem(
+        "studymate_session_started_at",
+        Date.now().toString(),
+      );
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -47,7 +54,11 @@ const SignUp = () => {
     setLoading(true);
     try {
       const data = await api.post("/auth/google", { credential, role });
-      localStorage.setItem("studymate_session_started_at", Date.now().toString());
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem(
+        "studymate_session_started_at",
+        Date.now().toString(),
+      );
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
