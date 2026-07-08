@@ -240,7 +240,7 @@ def google_auth():
 
     access_token = create_access_token(identity=str(user.id))
 
-   try:
+    try:
         login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
         import threading
         threading.Thread(
@@ -331,7 +331,7 @@ def login():
     if user and bcrypt.check_password_hash(user.password, password):
         access_token = create_access_token(identity=str(user.id))
 
-       try:
+        try:
             login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
             import threading
             threading.Thread(
@@ -2130,7 +2130,8 @@ def submit_attempt(attempt_id):
 
     new_achievements = check_and_unlock_achievements(user_id)
     breakdown = _build_breakdown(attempt)
-if new_achievements:
+
+    if new_achievements:
         user = db.session.get(User, user_id)
         for ach in new_achievements:
             try:
