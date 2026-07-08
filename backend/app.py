@@ -329,7 +329,7 @@ def login():
     else:
         user = User.query.filter_by(username=identifier).first()
 
-  if user and bcrypt.check_password_hash(user.password, password):
+    if user and bcrypt.check_password_hash(user.password, password):
         access_token = create_access_token(identity=str(user.id))
 
         try:
@@ -2124,7 +2124,7 @@ def submit_attempt(attempt_id):
     attempt.submitted_at = datetime.utcnow()
     db.session.commit()
 
-   new_achievements = check_and_unlock_achievements(user_id)
+    new_achievements = check_and_unlock_achievements(user_id)
     breakdown = _build_breakdown(attempt)
 
     if new_achievements:
