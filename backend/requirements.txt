@@ -13,11 +13,6 @@ youtube-transcript-api
 yt-dlp
 google-genai
 google-auth
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=mojolaoluwa455@gmail.com
-SMTP_PASSWORD=bawc mvgk jejg etrr
-SMTP_FROM=StudyMate <mojolaoluwa455@gmail.com>
 weasyprint
 reportlab
 python-dotenv
