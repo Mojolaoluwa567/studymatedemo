@@ -103,6 +103,7 @@ const Layout = ({ children }) => {
   const SidebarContent = () => (
     <>
       <Link to="/dashboard" className="flex items-center gap-2 px-2 mb-8">
+        <img src="/logoss.png" alt="" className="w-6 h-6" />
         <span className="font-mono text-accent text-xs tracking-[0.3em] uppercase">
           StudyMate
         </span>
@@ -166,6 +167,7 @@ const Layout = ({ children }) => {
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-bg border-r border-border px-3 py-6 flex flex-col">
             <div className="flex items-center justify-between px-2 mb-8">
               <span className="font-mono text-accent text-xs tracking-[0.3em] uppercase">
+                <img src="/logoss.png" alt="" className="w-6 h-6" />
                 StudyMate
               </span>
               <button

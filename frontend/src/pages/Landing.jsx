@@ -127,6 +127,7 @@ const Landing = () => {
       <header className="border-b border-border sticky top-0 bg-bg/95 backdrop-blur z-20">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <img src="/logoss.png" alt="" className="w-6 h-6" />
             <span className="font-mono text-accent text-xs tracking-[0.3em] uppercase">
               StudyMate
             </span>
@@ -188,7 +189,10 @@ const Landing = () => {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="max-w-5xl mx-auto px-4 py-16 border-t border-border">
+      <section
+        id="how-it-works"
+        className="max-w-5xl mx-auto px-4 py-16 border-t border-border"
+      >
         <h2 className="text-2xl font-semibold mb-2">How it works</h2>
         <p className="text-muted mb-8">
           Four steps — your first quiz is ready in under a minute.
@@ -219,7 +223,9 @@ const Landing = () => {
 
       {/* Difficulty tiers */}
       <section className="max-w-5xl mx-auto px-4 py-16 border-t border-border">
-        <h2 className="text-2xl font-semibold mb-2">Three stages, one system</h2>
+        <h2 className="text-2xl font-semibold mb-2">
+          Three stages, one system
+        </h2>
         <p className="text-muted mb-8">
           Each stage has a genuinely different structure — not just harder
           wording. All questions are generated strictly from your uploaded
@@ -249,7 +255,9 @@ const Landing = () => {
 
       {/* Features */}
       <section className="max-w-5xl mx-auto px-4 py-16 border-t border-border">
-        <h2 className="text-2xl font-semibold mb-8">Everything you need to actually retain it</h2>
+        <h2 className="text-2xl font-semibold mb-8">
+          Everything you need to actually retain it
+        </h2>
         <div className="grid sm:grid-cols-2 gap-8">
           <FeatureItem
             title="Closed-book, on purpose"
@@ -290,12 +298,22 @@ const Landing = () => {
       <section className="max-w-5xl mx-auto px-4 py-16 border-t border-border">
         <h2 className="text-2xl font-semibold mb-2">Built for teachers too</h2>
         <p className="text-muted mb-8">
-          Sign up as a teacher for a completely different experience — manage assignments, classes, and track how every student is doing.
+          Sign up as a teacher for a completely different experience — manage
+          assignments, classes, and track how every student is doing.
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <FeatureItem title="Draft, review, then publish" description="Generate questions, review and edit each one individually, then publish when you're happy. Students can't see it until you do." />
-          <FeatureItem title="Classes & cohorts" description="Create a class, share one code, and all your assignments are automatically visible to every student who joins." />
-          <FeatureItem title="Bulk upload" description="Upload up to 20 lecture PDFs at once. Each becomes a document you can turn into an assignment." />
+          <FeatureItem
+            title="Draft, review, then publish"
+            description="Generate questions, review and edit each one individually, then publish when you're happy. Students can't see it until you do."
+          />
+          <FeatureItem
+            title="Classes & cohorts"
+            description="Create a class, share one code, and all your assignments are automatically visible to every student who joins."
+          />
+          <FeatureItem
+            title="Bulk upload"
+            description="Upload up to 20 lecture PDFs at once. Each becomes a document you can turn into an assignment."
+          />
         </div>
       </section>
 
@@ -320,10 +338,12 @@ const Landing = () => {
             <span className="absolute top-4 right-4 text-[10px] font-mono uppercase tracking-wider text-muted border border-border rounded-full px-2 py-0.5">
               Coming soon
             </span>
-            <h3 className="font-semibold mb-1.5 pr-20">Voiceover & video lessons</h3>
+            <h3 className="font-semibold mb-1.5 pr-20">
+              Voiceover & video lessons
+            </h3>
             <p className="text-sm text-muted leading-relaxed">
-              Turn a document into a narrated audio walkthrough or a short
-              video lesson on a specific topic.
+              Turn a document into a narrated audio walkthrough or a short video
+              lesson on a specific topic.
             </p>
           </div>
           <div className="bg-surface border border-border rounded-xl p-5 relative">
@@ -332,9 +352,8 @@ const Landing = () => {
             </span>
             <h3 className="font-semibold mb-1.5 pr-20">Deeper retrieval</h3>
             <p className="text-sm text-muted leading-relaxed">
-              Full-document retrieval for longer course material, so
-              quizzes can draw from an entire textbook, not just the first
-              portion of it.
+              Full-document retrieval for longer course material, so quizzes can
+              draw from an entire textbook, not just the first portion of it.
             </p>
           </div>
         </div>
@@ -342,7 +361,9 @@ const Landing = () => {
 
       {/* CTA */}
       <section className="max-w-5xl mx-auto px-4 py-20 border-t border-border text-center">
-        <h2 className="text-3xl font-semibold mb-3">Stop re-reading. Start testing yourself.</h2>
+        <h2 className="text-3xl font-semibold mb-3">
+          Stop re-reading. Start testing yourself.
+        </h2>
         <p className="text-muted mb-8 max-w-md mx-auto">
           Free to use. No credit card. Your first quiz is one upload away.
         </p>
@@ -367,18 +388,46 @@ const Landing = () => {
               </p>
             </div>
             <div>
-              <p className="text-xs font-mono text-muted uppercase tracking-wider mb-3">For students</p>
+              <p className="text-xs font-mono text-muted uppercase tracking-wider mb-3">
+                For students
+              </p>
               <ul className="space-y-2">
-                <li><a href="/signup" className="text-sm text-muted hover:text-ink transition-colors">Create free account</a></li>
-                <li><a href="/login" className="text-sm text-muted hover:text-ink transition-colors">Log in</a></li>
-                <li><a href="/join" className="text-sm text-muted hover:text-ink transition-colors">Join an assignment</a></li>
+                <li>
+                  <a
+                    href="/signup"
+                    className="text-sm text-muted hover:text-ink transition-colors"
+                  >
+                    Create free account
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/login"
+                    className="text-sm text-muted hover:text-ink transition-colors"
+                  >
+                    Log in
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/join"
+                    className="text-sm text-muted hover:text-ink transition-colors"
+                  >
+                    Join an assignment
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
-              <p className="text-xs font-mono text-muted uppercase tracking-wider mb-3">For teachers</p>
+              <p className="text-xs font-mono text-muted uppercase tracking-wider mb-3">
+                For teachers
+              </p>
               <ul className="space-y-2">
                 <li>
-                  <a href="/signup" className="text-sm text-muted hover:text-ink transition-colors">
+                  <a
+                    href="/signup"
+                    className="text-sm text-muted hover:text-ink transition-colors"
+                  >
                     Sign up as a teacher
                   </a>
                 </li>
@@ -397,7 +446,8 @@ const Landing = () => {
           </div>
           <div className="border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-muted">
-              © {new Date().getFullYear()} StudyMate. Free to use, built for students.
+              © {new Date().getFullYear()} StudyMate. Free to use, built for
+              students.
             </p>
             <div className="flex gap-4">
               <a href="/signup" className="text-xs text-accent hover:underline">
