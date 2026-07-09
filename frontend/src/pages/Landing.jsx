@@ -362,7 +362,8 @@ const Landing = () => {
       {/* CTA */}
       <section className="max-w-5xl mx-auto px-4 py-20 border-t border-border text-center">
         <h2 className="text-3xl font-semibold mb-3">
-          Stop re-reading. Start testing yourself.
+          Test Yourself,Not Your Luck <br />
+          Walk Into Every Exam Prepared.
         </h2>
         <p className="text-muted mb-8 max-w-md mx-auto">
           Free to use. No credit card. Your first quiz is one upload away.

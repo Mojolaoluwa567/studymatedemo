@@ -21,3 +21,6 @@ psycopg2-binary
 pgvector
 rq
 redis
+pytest
+pytest-flask
+ruff

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import click
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
@@ -111,7 +112,34 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+
+
+@app.before_request
+def _log_request_start():
+    request.start_time = datetime.utcnow()
+
+
+@app.after_request
+def _log_request_end(response):
+    try:
+        duration_ms = (datetime.utcnow() - request.start_time).total_seconds() * 1000
+        user_id = None
+        try:
+            from flask_jwt_extended import get_jwt_identity
+            user_id = get_jwt_identity()
+        except Exception:
+            pass
+        logging.info(
+            f"{request.method} {request.path} -> {response.status_code} "
+            f"({duration_ms:.0f}ms) user={user_id or 'anon'}"
+        )
+    except Exception:
+        pass
+    return response
 
 # Schema is managed exclusively through Flask-Migrate from here on - see
 # migrations/. db.create_all() used to run here on every boot, which
@@ -2740,6 +2768,22 @@ def admin_delete_content(document_id):
 @_require_admin
 def admin_usage():
     return jsonify(get_admin_usage())
+
+
+@app.cli.command("create-admin")
+@click.argument("username")
+def create_admin(username):
+    """Grant admin privileges to an existing user. Usage: flask create-admin <username>"""
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        click.echo(f"No user found with username '{username}'")
+        return
+    if user.is_admin:
+        click.echo(f"{username} is already an admin")
+        return
+    user.is_admin = True
+    db.session.commit()
+    click.echo(f"{username} is now an admin")
 
 
 if __name__ == "__main__":
