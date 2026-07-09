@@ -73,12 +73,16 @@ HARD_MODES = {
     60: {
         "mcq_count": 60,
         "mcq_marks": 1,
-        "time_limit_minutes": 45,
+        "theory_count": 3,
+        "theory_marks": 5,
+        "time_limit_minutes": 55,
     },
     30: {
         "mcq_count": 30,
         "mcq_marks": 2,
-        "time_limit_minutes": 35,
+        "theory_count": 2,
+        "theory_marks": 8,
+        "time_limit_minutes": 45,
     },
 }
 
@@ -143,16 +147,17 @@ def get_quiz_plan(difficulty, format_mode=60):
 
     if difficulty == "hard":
         cfg = HARD_MODES.get(format_mode, HARD_MODES[60])
-        total = cfg["mcq_count"] * cfg["mcq_marks"]
+        obj_marks = cfg["mcq_count"] * cfg["mcq_marks"]
+        theory_marks = cfg["theory_count"] * cfg["theory_marks"]
         return {
             "difficulty": "hard",
             "mcq_count": cfg["mcq_count"],
             "mcq_marks": cfg["mcq_marks"],
-            "theory_count": 0,
-            "theory_marks": 0,
+            "theory_count": cfg["theory_count"],
+            "theory_marks": cfg["theory_marks"],
             "time_limit_minutes": cfg["time_limit_minutes"],
-            "total_marks": total,
-            "num_questions": cfg["mcq_count"],
+            "total_marks": obj_marks + theory_marks,
+            "num_questions": cfg["mcq_count"] + cfg["theory_count"],
             "format_mode": format_mode,
         }
 
@@ -263,11 +268,12 @@ def _build_prompt(document_text, plan):
 
     elif difficulty == "hard":
         style = (
-            f"Generate exactly {mcq_count} multiple-choice questions based on "
-            "the study material below.\n\n"
-            "This is Stage 2 — the main objective exam layer. Every question "
-            "must be MCQ only (no theory). The questions should be significantly "
-            "harder than simple recall:\n"
+            f"Generate exactly {mcq_count} multiple-choice questions AND "
+            f"{theory_count} essay-style questions based on the study "
+            "material below.\n\n"
+            "This is Stage 2 — the main objective exam layer, now with a "
+            "small essay component. The MCQs should be significantly harder "
+            "than simple recall:\n"
             "- Use 'which of the following is NOT...' or 'EXCEPT' phrasing\n"
             "- Create options that look almost identical so only someone who "
             "  truly understands the material can pick the right one\n"
@@ -277,16 +283,23 @@ def _build_prompt(document_text, plan):
             "- Use the kind of twists a university lecturer would use to catch "
             "  students who only skimmed the material\n\n"
             "Distractors must be genuinely plausible — not obviously wrong — so "
-            "that only precise understanding eliminates them."
+            "that only precise understanding eliminates them.\n\n"
+            "FOR THE ESSAY QUESTIONS:\n"
+            "These are genuinely different from a short-answer question — write "
+            "them as 'Discuss...', 'Compare and contrast...', or 'Critically "
+            "examine...' prompts that require a multi-paragraph response "
+            "synthesizing several related concepts from the material, not a "
+            "one-line fact. Provide a 'model_answer' field with the key points "
+            "a strong essay answer should cover, for grading reference."
         )
 
     else:  # difficult
         style = (
             f"Generate exactly {mcq_count} multiple-choice questions AND "
-            f"{theory_count} theory questions based on the study material below.\n\n"
+            f"{theory_count} essay-style questions based on the study material below.\n\n"
             "This is Stage 3 — the final exam simulation. It combines objective "
             "questions ({mcq_count} MCQ = {mcq_count * mcq_marks} marks) and "
-            f"theory questions ({theory_count} theory = "
+            f"essay questions ({theory_count} essay = "
             f"{theory_count * theory_marks} marks), totalling "
             f"{mcq_count * mcq_marks + theory_count * theory_marks} marks.\n\n"
             "FOR THE MCQs:\n"
@@ -295,15 +308,16 @@ def _build_prompt(document_text, plan):
             "invent unrelated fictional settings. Distractors should be plausible "
             "to someone with surface-level knowledge, requiring precise "
             "understanding to eliminate.\n\n"
-            "FOR THE THEORY QUESTIONS:\n"
-            "Require synthesizing two or more related concepts from the material. "
-            "Not just definitions — require the student to explain, compare, "
-            "apply, or analyze. Theory questions should feel like what a "
-            "lecturer would set in the written section of a final exam. "
-            "Provide a 'model_answer' field with the key marking points each "
-            "correct answer must cover, for grading reference."
+            "FOR THE ESSAY QUESTIONS:\n"
+            "These require genuine essay-style responses, not short answers. "
+            "Write them as 'Discuss...', 'Compare and contrast...', 'Critically "
+            "examine...', or 'Evaluate...' prompts that require synthesizing two "
+            "or more related concepts from the material into a multi-paragraph "
+            "answer — not just a definition. This is the written section of a "
+            "final exam, so questions should demand the depth a lecturer would "
+            "expect there. Provide a 'model_answer' field with the key marking "
+            "points a strong essay answer must cover, for grading reference."
         )
-
     schema = (
         "Respond with ONLY a JSON array (no markdown, no commentary, no code "
         "fences). Each element must be an object with these exact fields:\n"

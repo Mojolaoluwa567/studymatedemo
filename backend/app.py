@@ -2022,7 +2022,7 @@ def submit_mcq_phase(attempt_id):
         return jsonify(error="MCQ section already submitted"), 409
 
     quiz = attempt.quiz
-    if quiz.difficulty not in ("difficult",):
+    if quiz.difficulty not in ("difficult", "hard"):
         return jsonify(
             error="This quiz doesn't use the gated MCQ→theory flow"
         ), 400
