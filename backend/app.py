@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import click
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
@@ -68,6 +70,14 @@ from admin import (
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+if os.environ.get("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=os.environ.get("SENTRY_DSN"),
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=0.1,
+        environment=os.environ.get("FLASK_ENV", "production"),
+    )
+
 app = Flask(__name__)
 
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key-change-me-32chars")
@@ -109,8 +119,29 @@ CORS(app, supports_credentials=True, origins=[FRONTEND_ORIGIN])
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    storage_uri="memory://",
+    storage_uri=os.environ.get("REDIS_URL", "memory://"),
 )
+
+@app.errorhandler(404)
+def handle_404(e):
+    return jsonify(error={"code": "not_found", "message": "Resource not found"}), 404
+
+
+@app.errorhandler(429)
+def handle_rate_limit(e):
+    return jsonify(error={
+        "code": "rate_limited",
+        "message": "Too many requests. Please slow down and try again shortly.",
+    }), 429
+
+
+@app.errorhandler(500)
+def handle_500(e):
+    logging.error(f"Unhandled server error: {e}")
+    return jsonify(error={
+        "code": "server_error",
+        "message": "Something went wrong on our end. Please try again.",
+    }), 500
 
 logging.basicConfig(
     level=logging.INFO,
