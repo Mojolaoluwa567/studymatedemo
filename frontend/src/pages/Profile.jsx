@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { User, Mail, Calendar, Flame, Zap, Target, FileText, Trophy, KeyRound } from "lucide-react";
+import {
+  User,
+  Mail,
+  Calendar,
+  Flame,
+  Zap,
+  Lock,
+  Target,
+  FileText,
+  Trophy,
+  KeyRound,
+} from "lucide-react";
 import { api, formatDate } from "../api";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
@@ -15,7 +26,11 @@ const AchievementBadge = ({ achievement }) => (
         : "border-border bg-surface opacity-50"
     }`}
   >
-    <p className="text-2xl mb-1">{achievement.unlocked ? "🏆" : "🔒"}</p>
+    {achievement.unlocked ? (
+      <Trophy size={24} className="text-accent mx-auto mb-1" />
+    ) : (
+      <Lock size={24} className="text-muted mx-auto mb-1" />
+    )}
     <p className="text-sm font-medium">{achievement.title}</p>
     <p className="text-xs text-muted mt-1">{achievement.description}</p>
   </div>
@@ -35,9 +50,18 @@ const Profile = () => {
   const [pwError, setPwError] = useState("");
 
   useEffect(() => {
-    api.get("/profile").then(setProfile).catch((err) => setError(err.message));
-    api.get("/profile/stats").then(setStats).catch(() => {});
-    api.get("/achievements").then((data) => setAchievements(data.achievements)).catch(() => {});
+    api
+      .get("/profile")
+      .then(setProfile)
+      .catch((err) => setError(err.message));
+    api
+      .get("/profile/stats")
+      .then(setStats)
+      .catch(() => {});
+    api
+      .get("/achievements")
+      .then((data) => setAchievements(data.achievements))
+      .catch(() => {});
   }, []);
 
   const handleChangePassword = async (e) => {
@@ -108,17 +132,34 @@ const Profile = () => {
         </div>
         {profile.member_since && (
           <p className="text-xs text-muted font-mono flex items-center gap-1.5">
-            <Calendar size={11} /> Member since {formatDate(profile.member_since)}
+            <Calendar size={11} /> Member since{" "}
+            {formatDate(profile.member_since)}
           </p>
         )}
       </div>
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-          <StatCard label="Quizzes taken" value={stats.total_quizzes} icon={<Zap size={16} />} />
-          <StatCard label="Documents uploaded" value={stats.total_documents} icon={<FileText size={16} />} />
-          <StatCard label="Avg. score" value={`${stats.average_score}%`} icon={<Target size={16} />} />
-          <StatCard label="Day streak" value={stats.current_streak} icon={<Flame size={16} />} />
+          <StatCard
+            label="Quizzes taken"
+            value={stats.total_quizzes}
+            icon={<Zap size={16} />}
+          />
+          <StatCard
+            label="Documents uploaded"
+            value={stats.total_documents}
+            icon={<FileText size={16} />}
+          />
+          <StatCard
+            label="Avg. score"
+            value={`${stats.average_score}%`}
+            icon={<Target size={16} />}
+          />
+          <StatCard
+            label="Day streak"
+            value={stats.current_streak}
+            icon={<Flame size={16} />}
+          />
         </div>
       )}
 
