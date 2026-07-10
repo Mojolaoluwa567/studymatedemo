@@ -290,8 +290,13 @@ def google_auth():
             db.session.add(user)
             db.session.commit()
 
-            try:
-                send_welcome_email(email, username, role)
+          try:
+                import threading
+                threading.Thread(
+                    target=send_welcome_email,
+                    args=(email, username, role),
+                    daemon=True,
+                ).start()
             except Exception as e:
                 logging.warning(
                     f"Welcome email failed for Google signup {username}: {e}"
@@ -366,7 +371,12 @@ def signup():
 
     # Fire-and-forget welcome email - don't let email failure block signup
     try:
-        send_welcome_email(email.lower(), username, role)
+        import threading
+        threading.Thread(
+            target=send_welcome_email,
+            args=(email.lower(), username, role),
+            daemon=True,
+        ).start()
     except Exception as e:
         logging.warning(f"Welcome email failed for {username}: {e}")
 
@@ -1904,18 +1914,15 @@ def assignment_results(quiz_id):
     from sqlalchemy.orm import joinedload
 
     attempts = (
-    Attempt.query.join(Quiz)
-    .filter(
-        Quiz.document_id == document_id,
-        Attempt.user_id == user_id,
-        Attempt.submitted_at.isnot(None),
+        Attempt.query.filter_by(quiz_id=quiz.id)
+        .filter(Attempt.submitted_at.isnot(None))
+        .options(
+            joinedload(Attempt.answers),
+            joinedload(Attempt.quiz).joinedload(Quiz.questions),
+        )
+        .order_by(Attempt.submitted_at.desc())
+        .all()
     )
-    .options(
-        joinedload(Attempt.answers),
-        joinedload(Attempt.quiz).joinedload(Quiz.questions),
-    )
-    .all()
- )
 
     results = []
     for a in attempts:
@@ -2067,35 +2074,6 @@ def start_attempt():
         time_limit_minutes=quiz.time_limit_minutes,
         started_at=attempt.started_at.isoformat(),
         resumed=False,
-    )
-    user_id = int(get_jwt_identity())
-    data = request.get_json()
-    quiz_id = data.get("quiz_id")
-
-    quiz = _get_accessible_quiz(quiz_id, user_id)
-    if not quiz:
-        return jsonify(error="Quiz not found"), 404
-
-    total_study_seconds = (
-        db.session.query(db.func.sum(StudySession.duration_seconds))
-        .filter_by(user_id=user_id, document_id=quiz.document_id)
-        .scalar()
-        or 0
-    )
-
-    attempt = Attempt(
-        quiz_id=quiz.id,
-        user_id=user_id,
-        max_score=quiz.total_marks,
-        study_time_seconds=total_study_seconds,
-    )
-    db.session.add(attempt)
-    db.session.commit()
-
-    return jsonify(
-        attempt_id=attempt.id,
-        time_limit_minutes=quiz.time_limit_minutes,
-        started_at=attempt.started_at.isoformat(),
     )
 
 

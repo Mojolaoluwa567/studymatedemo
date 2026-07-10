@@ -6,7 +6,7 @@ import { gradeFromPercentage, formatClock, API_URL } from "../api";
 const ReportCardModal = ({
   result,
   timeSpentSeconds,
-  onReviewAnswers,
+  onViewResult,
   onRetake,
   onClose,
   attemptId,
@@ -109,7 +109,7 @@ const ReportCardModal = ({
 
         <div className="flex flex-col gap-2">
           <button
-            onClick={onReviewAnswers}
+            onClick={onViewResult}
             className="bg-accent text-bg font-semibold rounded-lg py-2.5 hover:opacity-90 transition-opacity"
           >
             Review answers

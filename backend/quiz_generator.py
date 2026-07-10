@@ -77,7 +77,6 @@ FORMATTING_RULES = (
 )
 
 
-EASY_MODES = {
 # ---------------------------------------------------------------------------
 # Stage 1 — Easy (MCQ only, two format options)
 # ---------------------------------------------------------------------------
@@ -573,7 +572,7 @@ def _build_weak_spots_prompt(document_text, weak_topics, plan):
         "test understanding, not just recognition."
     )
 
-   schema = (
+    schema = (
         "Respond with ONLY a JSON array (no markdown, no commentary, no code "
         "fences). Each element must be an object with these exact fields:\n"
         '- "type": "mcq"\n'
