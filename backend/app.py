@@ -290,14 +290,14 @@ def google_auth():
             db.session.add(user)
             db.session.commit()
 
-          try:
+        try:
                 import threading
                 threading.Thread(
                     target=send_welcome_email,
                     args=(email, username, role),
                     daemon=True,
                 ).start()
-            except Exception as e:
+        except Exception as e:
                 logging.warning(
                     f"Welcome email failed for Google signup {username}: {e}"
                 )
