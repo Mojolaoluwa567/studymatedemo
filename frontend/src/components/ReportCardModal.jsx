@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import confetti from "canvas-confetti";
 import ScoreStamp from "./ScoreStamp";
-import { gradeFromPercentage, formatClock } from "../api";
+import { gradeFromPercentage, formatClock, API_URL } from "../api";
 
 const ReportCardModal = ({
   result,
@@ -9,14 +9,18 @@ const ReportCardModal = ({
   onReviewAnswers,
   onRetake,
   onClose,
+  attemptId,
 }) => {
+  const [downloadingPdf, setDownloadingPdf] = React.useState(false);
   const correctCount = result.breakdown.filter(
-    (q) => q.type === "mcq" && q.is_correct
+    (q) => q.type === "mcq" && q.is_correct,
   ).length;
   const incorrectCount = result.breakdown.filter(
-    (q) => q.type === "mcq" && !q.is_correct
+    (q) => q.type === "mcq" && !q.is_correct,
   ).length;
-  const theoryCount = result.breakdown.filter((q) => q.type === "theory").length;
+  const theoryCount = result.breakdown.filter(
+    (q) => q.type === "theory",
+  ).length;
   const grade = gradeFromPercentage(result.percentage);
 
   useEffect(() => {
@@ -30,34 +34,41 @@ const ReportCardModal = ({
     }
   }, [result.percentage]);
 
-  const handleDownload = () => {
-    const lines = [
-      `StudyMate Report Card`,
-      `Score: ${result.total_score}/${result.max_score} (${result.percentage}%)`,
-      `Grade: ${grade}`,
-      `Correct (MCQ): ${correctCount}`,
-      `Incorrect (MCQ): ${incorrectCount}`,
-      `Theory questions: ${theoryCount}`,
-      `Time spent: ${formatClock(timeSpentSeconds)}`,
-      ``,
-      `Question breakdown:`,
-      ...result.breakdown.map(
-        (q, i) => `${i + 1}. [${q.score_awarded}/${q.marks}] ${q.question}`
-      ),
-    ];
-    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "studymate-report-card.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async () => {
+    setDownloadingPdf(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_URL}/attempts/${attemptId}/export-pdf`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Could not generate the PDF. Try again.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "quiz_results.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   let summary = "Keep practicing - reviewing your mistakes will help most.";
-  if (result.percentage >= 80) summary = "Excellent work! You've got a strong grasp of this material.";
-  else if (result.percentage >= 60) summary = "Good effort - a bit more review and you'll be solid.";
-  else if (result.percentage >= 45) summary = "You're getting there - focus on the topics you missed.";
+  if (result.percentage >= 80)
+    summary = "Excellent work! You've got a strong grasp of this material.";
+  else if (result.percentage >= 60)
+    summary = "Good effort - a bit more review and you'll be solid.";
+  else if (result.percentage >= 45)
+    summary = "You're getting there - focus on the topics you missed.";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
@@ -112,9 +123,10 @@ const ReportCardModal = ({
             </button>
             <button
               onClick={handleDownload}
-              className="flex-1 border border-border rounded-lg py-2.5 text-sm hover:border-accent transition-colors"
+              disabled={downloadingPdf}
+              className="flex-1 border border-border rounded-lg py-2.5 text-sm hover:border-accent transition-colors disabled:opacity-50"
             >
-              Download results
+              {downloadingPdf ? "Preparing PDF..." : "Download PDF"}
             </button>
           </div>
           <button

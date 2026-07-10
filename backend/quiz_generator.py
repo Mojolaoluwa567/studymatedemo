@@ -58,7 +58,26 @@ def get_client():
         _client = genai.Client(api_key=api_key)
     return _client
 
+FORMATTING_RULES = (
+    "TEXT FORMATTING RULES (apply to every question, option, and answer):\n"
+    "- Never use markdown syntax inside question/option/answer text - no "
+    "  backticks, no asterisks for bold/italic, no markdown headers. This "
+    "  text is rendered as plain text, so markdown artifacts show up as "
+    "  literal stray characters to the student.\n"
+    "- For code snippets referenced in a question, write them as plain "
+    "  inline text (e.g. for i in range(10)) without any backticks or "
+    "  code-fence wrapping.\n"
+    "- For math and logic, use proper Unicode symbols instead of writing "
+    "  them out or using asterisks: × for multiplication, ÷ for division, "
+    "  ≤ ≥ ≠ ± √ π for their respective operators, → for implication/"
+    "  arrows, ² ³ for exponents where applicable. Do not use * for "
+    "  multiplication or ^ for exponents in question text.\n"
+    "- Write questions in clear, standard, grammatically correct English - "
+    "  no run-on phrasing, no ambiguous pronoun references.\n"
+)
 
+
+EASY_MODES = {
 # ---------------------------------------------------------------------------
 # Stage 1 — Easy (MCQ only, two format options)
 # ---------------------------------------------------------------------------
@@ -239,7 +258,8 @@ def _build_lecturer_style_prompt(content_text, style_sample_text, plan):
         f'- "marks": {plan["mcq_marks"]}\n'
         '- "topic": a short 2-4 word label for the specific concept this '
         'question tests (e.g. "CPU Scheduling", "Deadlock Conditions") - '
-        "used to track which topics a student is strong/weak on"
+        "used to track which topics a student is strong/weak on\n\n"
+        f"{FORMATTING_RULES}"
     )
 
     return (
@@ -332,7 +352,8 @@ def _build_prompt(document_text, plan):
         + (f", {theory_marks} for theory" if theory_count > 0 else "")
         + '\n- "topic": a short 2-4 word label for the specific concept this '
         'question tests (e.g. "CPU Scheduling", "Deadlock Conditions") - '
-        "used to track which topics a student is strong/weak on"
+        "used to track which topics a student is strong/weak on\n\n"
+        + FORMATTING_RULES
     )
 
     return f"{style}\n\n{schema}\n\n--- STUDY MATERIAL ---\n{document_text}"
@@ -552,7 +573,7 @@ def _build_weak_spots_prompt(document_text, weak_topics, plan):
         "test understanding, not just recognition."
     )
 
-    schema = (
+   schema = (
         "Respond with ONLY a JSON array (no markdown, no commentary, no code "
         "fences). Each element must be an object with these exact fields:\n"
         '- "type": "mcq"\n'
@@ -560,7 +581,8 @@ def _build_weak_spots_prompt(document_text, weak_topics, plan):
         '- "options": an object {"A": "...", "B": "...", "C": "...", "D": "..."}\n'
         '- "correct_answer": the correct option key (e.g. "B")\n'
         f'- "marks": {plan["mcq_marks"]}\n'
-        f'- "topic": which of these topics this question targets: {topics_list}'
+        f'- "topic": which of these topics this question targets: {topics_list}\n\n'
+        f"{FORMATTING_RULES}"
     )
 
     return f"{style}\n\n{schema}\n\n--- STUDY MATERIAL ---\n{document_text}"

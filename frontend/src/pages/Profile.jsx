@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   User,
@@ -165,11 +166,19 @@ const Profile = () => {
 
       {achievements && (
         <div className="mb-8">
-          <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <Trophy size={16} className="text-accent" /> Achievements
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold flex items-center gap-2">
+              <Trophy size={16} className="text-accent" /> Achievements
+            </h2>
+            <Link
+              to="/achievements"
+              className="text-xs text-accent hover:underline"
+            >
+              View all
+            </Link>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {achievements.map((a) => (
+            {achievements.slice(0, 4).map((a) => (
               <AchievementBadge key={a.key} achievement={a} />
             ))}
           </div>

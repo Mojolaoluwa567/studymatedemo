@@ -28,6 +28,12 @@ import Skeleton from "../components/Skeleton";
 import UploadPanel from "../components/UploadPanel";
 import usePageTitle from "../hooks/usePageTitle";
 
+useEffect(() => {
+  if (window.location.hash === "#upload") {
+    document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" });
+  }
+}, []);
+
 const DIFFICULTY_COLORS = {
   easy: "border-correct text-correct",
   hard: "border-accent text-accent",
@@ -93,6 +99,7 @@ const Dashboard = () => {
   const [error, setError] = useState("");
 
   const [deletingId, setDeletingId] = useState(null);
+  const [weakSpotsLoadingId, setWeakSpotsLoadingId] = useState(null);
 
   const loadAll = async () => {
     try {
@@ -336,7 +343,9 @@ const Dashboard = () => {
       )}
 
       {/* Upload */}
-      <UploadPanel onUploaded={handleUploaded} />
+      <div id="upload">
+        <UploadPanel onUploaded={handleUploaded} />
+      </div>
 
       {error && (
         <p className="text-incorrect text-sm border border-incorrect/30 bg-incorrect/10 rounded-lg px-3 py-2 mb-6">
@@ -444,6 +453,7 @@ const Dashboard = () => {
                   </Link>
                   <button
                     onClick={async () => {
+                      setWeakSpotsLoadingId(doc.id);
                       try {
                         const quiz = await api.post(
                           `/documents/${doc.id}/weak-spots-quiz`,
@@ -451,12 +461,17 @@ const Dashboard = () => {
                         window.location.href = `/quiz/${quiz.id}`;
                       } catch (err) {
                         toast(err.message, { icon: "🎯" });
+                        setWeakSpotsLoadingId(null);
                       }
                     }}
-                    className="flex items-center justify-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 hover:border-accent transition-colors"
+                    disabled={weakSpotsLoadingId === doc.id}
+                    className="flex items-center justify-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 hover:border-accent transition-colors disabled:opacity-50"
                     title="Generate a quiz targeting your weakest topics on this document"
                   >
-                    <Crosshair size={13} /> Weak spots
+                    <Crosshair size={13} />
+                    {weakSpotsLoadingId === doc.id
+                      ? "Generating..."
+                      : "Weak spots"}
                   </button>
                 </div>
                 <button

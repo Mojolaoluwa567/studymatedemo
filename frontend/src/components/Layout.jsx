@@ -10,6 +10,9 @@ import {
   Menu,
   X,
   Users2,
+  Trophy,
+  TrendingUp,
+  UploadCloud,
 } from "lucide-react";
 import { api } from "../api";
 import toast from "react-hot-toast";
@@ -23,6 +26,8 @@ const NAV_ICONS = {
   profile: <User size={18} />,
   admin: <Shield size={18} />,
   classes: <Users2 size={18} />,
+  achievements: <Trophy size={18} />,
+  performance: <TrendingUp size={18} />,
 };
 
 const Layout = ({ children }) => {
@@ -90,6 +95,8 @@ const Layout = ({ children }) => {
       ? [
           { to: "/join", label: "Join a quiz", icon: "join" },
           { to: "/history", label: "History", icon: "history" },
+          { to: "/performance", label: "Performance", icon: "performance" },
+          { to: "/achievements", label: "Achievements", icon: "achievements" },
         ]
       : []),
     { to: "/classes", label: "Classes", icon: "classes" },
@@ -99,6 +106,17 @@ const Layout = ({ children }) => {
 
   const isActive = (to) =>
     location.pathname === to || location.pathname.startsWith(`${to}/`);
+
+  const UploadShortcut = () =>
+    role !== "teacher" && (
+      <Link
+        to="/dashboard#upload"
+        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm bg-accent text-bg font-medium hover:opacity-90 transition-opacity mb-2"
+      >
+        <UploadCloud size={16} />
+        Upload document
+      </Link>
+    );
 
   const SidebarContent = () => (
     <>
@@ -124,6 +142,7 @@ const Layout = ({ children }) => {
           </Link>
         ))}
       </nav>
+      <UploadShortcut />
       <div className="pt-4 mt-4 border-t border-border flex items-center justify-between px-2">
         <ThemeToggle />
         <button
@@ -138,15 +157,16 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-bg text-ink flex">
-      <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border px-3 py-6 sticky top-0 h-screen">
+      <aside className="hidden md:flex flex-col w-60 shrink-0 bg-surface border-r border-border px-3 py-6 sticky top-0 h-screen">
         <SidebarContent />
       </aside>
 
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-bg/95 backdrop-blur border-b border-border flex items-center justify-between px-4 py-3">
         <Link
           to="/dashboard"
-          className="font-mono text-accent text-xs tracking-[0.3em] uppercase"
+          className="flex items-center gap-2 font-mono text-accent text-xs tracking-[0.3em] uppercase"
         >
+          <img src="/logoss.png" alt="" className="w-5 h-5" />
           StudyMate
         </Link>
         <button
@@ -164,9 +184,9 @@ const Layout = ({ children }) => {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-bg border-r border-border px-3 py-6 flex flex-col">
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-surface border-r border-border px-3 py-6 flex flex-col">
             <div className="flex items-center justify-between px-2 mb-8">
-              <span className="font-mono text-accent text-xs tracking-[0.3em] uppercase">
+              <span className="flex items-center gap-2 font-mono text-accent text-xs tracking-[0.3em] uppercase">
                 <img src="/logoss.png" alt="" className="w-6 h-6" />
                 StudyMate
               </span>
@@ -194,6 +214,7 @@ const Layout = ({ children }) => {
                 </Link>
               ))}
             </nav>
+            <UploadShortcut />
             <div className="pt-4 mt-4 border-t border-border flex items-center justify-between px-2">
               <ThemeToggle />
               <button

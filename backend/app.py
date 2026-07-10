@@ -1901,12 +1901,21 @@ def assignment_results(quiz_id):
     if not quiz:
         return jsonify(error="Assignment not found"), 404
 
+    from sqlalchemy.orm import joinedload
+
     attempts = (
-        Attempt.query.filter_by(quiz_id=quiz.id)
-        .filter(Attempt.submitted_at.isnot(None))
-        .order_by(Attempt.submitted_at.desc())
-        .all()
+    Attempt.query.join(Quiz)
+    .filter(
+        Quiz.document_id == document_id,
+        Attempt.user_id == user_id,
+        Attempt.submitted_at.isnot(None),
     )
+    .options(
+        joinedload(Attempt.answers),
+        joinedload(Attempt.quiz).joinedload(Quiz.questions),
+    )
+    .all()
+ )
 
     results = []
     for a in attempts:
@@ -2003,6 +2012,62 @@ def get_quiz(quiz_id):
 @app.route("/attempts", methods=["POST"])
 @jwt_required()
 def start_attempt():
+    user_id = int(get_jwt_identity())
+    data = request.get_json()
+    quiz_id = data.get("quiz_id")
+
+    quiz = _get_accessible_quiz(quiz_id, user_id)
+    if not quiz:
+        return jsonify(error="Quiz not found"), 404
+
+    # Resume: if this student already has an unsubmitted attempt on this
+    # quiz, return that one instead of creating a duplicate. This is what
+    # lets a student who navigated away or refreshed mid-quiz pick up
+    # where they left off, with the timer correctly reflecting time
+    # already elapsed since they first started (not reset to full length).
+    existing = (
+        Attempt.query.filter_by(quiz_id=quiz.id, user_id=user_id, submitted_at=None)
+        .order_by(Attempt.started_at.desc())
+        .first()
+    )
+    if existing:
+        elapsed_seconds = int(
+            (datetime.utcnow() - existing.started_at).total_seconds()
+        )
+        response = {
+            "attempt_id": existing.id,
+            "time_limit_minutes": quiz.time_limit_minutes,
+            "started_at": existing.started_at.isoformat(),
+            "resumed": True,
+            "elapsed_seconds": elapsed_seconds,
+        }
+        if existing.mcq_submitted_at is not None:
+            response["mcq_already_submitted"] = True
+            response["mcq_score"] = existing.mcq_score
+        return jsonify(response)
+
+    total_study_seconds = (
+        db.session.query(db.func.sum(StudySession.duration_seconds))
+        .filter_by(user_id=user_id, document_id=quiz.document_id)
+        .scalar()
+        or 0
+    )
+
+    attempt = Attempt(
+        quiz_id=quiz.id,
+        user_id=user_id,
+        max_score=quiz.total_marks,
+        study_time_seconds=total_study_seconds,
+    )
+    db.session.add(attempt)
+    db.session.commit()
+
+    return jsonify(
+        attempt_id=attempt.id,
+        time_limit_minutes=quiz.time_limit_minutes,
+        started_at=attempt.started_at.isoformat(),
+        resumed=False,
+    )
     user_id = int(get_jwt_identity())
     data = request.get_json()
     quiz_id = data.get("quiz_id")
@@ -2738,7 +2803,56 @@ def document_performance(document_id):
         ],
     )
 
+@app.route("/performance/overview", methods=["GET"])
+@jwt_required()
+def performance_overview():
+    """
+    Cross-document performance summary - one row per document the student
+    has taken at least one quiz on, each with its own average and attempt
+    count, plus an overall total. Used by the sidebar's Performance hub so
+    students don't have to open a document first just to see how they're
+    doing.
+    """
+    user_id = int(get_jwt_identity())
 
+    documents = Document.query.filter_by(user_id=user_id).all()
+    overview = []
+
+    for doc in documents:
+        attempts = (
+            Attempt.query.join(Quiz)
+            .filter(
+                Quiz.document_id == doc.id,
+                Attempt.user_id == user_id,
+                Attempt.submitted_at.isnot(None),
+            )
+            .all()
+        )
+        if not attempts:
+            continue
+
+        avg_percentage = round(
+            sum(a.percentage for a in attempts) / len(attempts), 1
+        )
+        total_study_seconds = (
+            db.session.query(db.func.sum(StudySession.duration_seconds))
+            .filter_by(user_id=user_id, document_id=doc.id)
+            .scalar()
+            or 0
+        )
+
+        overview.append({
+            "document_id": doc.id,
+            "document_title": doc.title,
+            "attempts_count": len(attempts),
+            "average_percentage": avg_percentage,
+            "total_study_seconds": total_study_seconds,
+            "last_attempt_at": max(a.submitted_at for a in attempts).isoformat(),
+        })
+
+    overview.sort(key=lambda d: d["last_attempt_at"], reverse=True)
+
+    return jsonify(documents=overview)
 # ---------------------------------------------------------------------------
 # Admin dashboard
 # ---------------------------------------------------------------------------

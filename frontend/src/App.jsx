@@ -14,6 +14,8 @@ import QuizSetup from "./pages/QuizSetup";
 import Quiz from "./pages/Quiz";
 import Results from "./pages/Results";
 import Performance from "./pages/Performance";
+import PerformanceOverview from "./pages/PerformanceOverview";
+import Achievements from "./pages/Achievements";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
 import Classes from "./pages/Classes";
@@ -49,6 +51,8 @@ const App = () => {
           <Route path="/documents/:id/study" element={<StudySession />} />
           <Route path="/documents/:id/quiz-setup" element={<QuizSetup />} />
           <Route path="/documents/:id/performance" element={<Performance />} />
+          <Route path="/performance" element={<PerformanceOverview />} />
+          <Route path="/achievements" element={<Achievements />} />
           <Route path="/history" element={<History />} />
           <Route path="/quiz/:quizId" element={<Quiz />} />
           <Route path="/results/:attemptId" element={<Results />} />

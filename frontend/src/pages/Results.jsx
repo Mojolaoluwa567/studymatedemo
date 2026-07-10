@@ -123,12 +123,6 @@ const Results = () => {
   return (
     <Layout>
       <BackButton />
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-sm text-muted hover:text-ink transition-colors mb-6"
-      >
-        ← Back
-      </button>
 
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-10">
         <ScoreStamp
