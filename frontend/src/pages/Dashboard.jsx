@@ -28,12 +28,6 @@ import Skeleton from "../components/Skeleton";
 import UploadPanel from "../components/UploadPanel";
 import usePageTitle from "../hooks/usePageTitle";
 
-useEffect(() => {
-  if (window.location.hash === "#upload") {
-    document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" });
-  }
-}, []);
-
 const DIFFICULTY_COLORS = {
   easy: "border-correct text-correct",
   hard: "border-accent text-accent",
@@ -123,6 +117,12 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadAll();
+  }, []);
+
+  useEffect(() => {
+    if (window.location.hash === "#upload") {
+      document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" });
+    }
   }, []);
 
   const handleDelete = async (doc) => {
