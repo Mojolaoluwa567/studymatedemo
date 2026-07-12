@@ -9,7 +9,14 @@ Achievement unlock record itself.
 from datetime import datetime, timedelta
 
 from extensions import db
-from models import Attempt, StudySession, Achievement, Quiz
+from models import (
+    Attempt,
+    StudySession,
+    Achievement,
+    Quiz,
+    Class,
+    ClassMembership,
+)
 
 
 ACHIEVEMENTS = {
@@ -28,6 +35,30 @@ ACHIEVEMENTS = {
     "seven_day_streak": {
         "title": "7-Day Streak",
         "description": "Study or take a quiz for 7 days in a row.",
+    },
+}
+
+
+TEACHER_ACHIEVEMENTS = {
+    "first_class": {
+        "title": "Classroom Founded",
+        "description": "Create your first class.",
+    },
+    "ten_students": {
+        "title": "Growing Cohort",
+        "description": "Reach 10 students enrolled across your classes.",
+    },
+    "fifty_students": {
+        "title": "Full House",
+        "description": "Reach 50 students enrolled across your classes.",
+    },
+    "first_assignment_published": {
+        "title": "First Assignment Live",
+        "description": "Publish your first assignment.",
+    },
+    "five_assignments_published": {
+        "title": "Prolific Educator",
+        "description": "Publish 5 assignments.",
     },
 }
 
@@ -107,9 +138,71 @@ def check_and_unlock_achievements(user_id):
 
     return newly_unlocked
 
+def compute_teacher_stats(user_id):
+    """Shared stats used by teacher achievement checks."""
+    classes = Class.query.filter_by(teacher_id=user_id).all()
+    class_ids = [c.id for c in classes]
 
-def get_achievements_for_user(user_id):
-    """Returns every defined achievement with unlocked status/date."""
+    total_students = (
+        ClassMembership.query.filter(ClassMembership.class_id.in_(class_ids))
+        .distinct(ClassMembership.student_id)
+        .count()
+        if class_ids
+        else 0
+    )
+
+    published_assignments_count = Quiz.query.filter_by(
+        user_id=user_id, is_assignment=True, is_published=True
+    ).count()
+
+    return {
+        "total_classes": len(classes),
+        "total_students": total_students,
+        "published_assignments_count": published_assignments_count,
+    }
+
+
+def check_and_unlock_teacher_achievements(user_id):
+    """Same pattern as check_and_unlock_achievements, for teacher-specific
+    milestones. Called from class-creation, class-join, and
+    assignment-publish routes rather than quiz submission."""
+    stats = compute_teacher_stats(user_id)
+    existing_keys = {
+        a.key for a in Achievement.query.filter_by(user_id=user_id).all()
+    }
+
+    to_unlock = []
+    if stats["total_classes"] >= 1 and "first_class" not in existing_keys:
+        to_unlock.append("first_class")
+    if stats["total_students"] >= 10 and "ten_students" not in existing_keys:
+        to_unlock.append("ten_students")
+    if stats["total_students"] >= 50 and "fifty_students" not in existing_keys:
+        to_unlock.append("fifty_students")
+    if (
+        stats["published_assignments_count"] >= 1
+        and "first_assignment_published" not in existing_keys
+    ):
+        to_unlock.append("first_assignment_published")
+    if (
+        stats["published_assignments_count"] >= 5
+        and "five_assignments_published" not in existing_keys
+    ):
+        to_unlock.append("five_assignments_published")
+
+    newly_unlocked = []
+    for key in to_unlock:
+        db.session.add(Achievement(user_id=user_id, key=key))
+        newly_unlocked.append({"key": key, **TEACHER_ACHIEVEMENTS[key]})
+
+    if newly_unlocked:
+        db.session.commit()
+
+    return newly_unlocked
+
+def get_achievements_for_user(user_id, is_teacher=False):
+    """Returns every defined achievement (student or teacher set,
+    depending on role) with unlocked status/date."""
+    definitions = TEACHER_ACHIEVEMENTS if is_teacher else ACHIEVEMENTS
     unlocked = {
         a.key: a.unlocked_at
         for a in Achievement.query.filter_by(user_id=user_id).all()
@@ -122,5 +215,5 @@ def get_achievements_for_user(user_id):
             "unlocked": key in unlocked,
             "unlocked_at": unlocked[key].isoformat() if key in unlocked else None,
         }
-        for key, info in ACHIEVEMENTS.items()
+        for key, info in definitions.items()
     ]

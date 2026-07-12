@@ -247,6 +247,16 @@ class ClassAssignment(db.Model):
         db.UniqueConstraint("class_id", "quiz_id", name="uq_class_quiz"),
     )
 
+class Announcement(db.Model):
+    """One-way broadcast from a teacher to every member of a class."""
+    __tablename__ = "announcement"
+    id = db.Column(db.Integer, primary_key=True)
+    class_id = db.Column(db.Integer, db.ForeignKey("class.id"), nullable=False, index=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    class_ = db.relationship("Class", backref=db.backref("announcements", cascade="all, delete-orphan")) 
 
 class DocumentChunk(db.Model):
     """

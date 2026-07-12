@@ -651,9 +651,6 @@ def upload_document():
     db.session.add(document)
     db.session.commit()
 
-    # RAG: chunk + embed long documents so generation can retrieve the
-    # most relevant portion instead of always truncating to the first
-    # ~18k characters. Short documents skip this (see should_chunk).
     try:
         from rag import embed_document_chunks
         embed_document_chunks(document)
@@ -782,9 +779,6 @@ def create_document_from_text():
     db.session.add(document)
     db.session.commit()
 
-    # RAG: chunk + embed long documents so generation can retrieve the
-    # most relevant portion instead of always truncating to the first
-    # ~18k characters. Short documents skip this (see should_chunk).
     try:
         from rag import embed_document_chunks
         embed_document_chunks(document)
@@ -837,9 +831,6 @@ def create_document_from_url():
     db.session.add(document)
     db.session.commit()
 
-    # RAG: chunk + embed long documents so generation can retrieve the
-    # most relevant portion instead of always truncating to the first
-    # ~18k characters. Short documents skip this (see should_chunk).
     try:
         from rag import embed_document_chunks
         embed_document_chunks(document)
@@ -897,9 +888,6 @@ def create_document_from_youtube():
     db.session.add(document)
     db.session.commit()
 
-    # RAG: chunk + embed long documents so generation can retrieve the
-    # most relevant portion instead of always truncating to the first
-    # ~18k characters. Short documents skip this (see should_chunk).
     try:
         from rag import embed_document_chunks
         embed_document_chunks(document)
@@ -954,9 +942,6 @@ def create_document_from_audio():
     db.session.add(document)
     db.session.commit()
 
-    # RAG: chunk + embed long documents so generation can retrieve the
-    # most relevant portion instead of always truncating to the first
-    # ~18k characters. Short documents skip this (see should_chunk).
     try:
         from rag import embed_document_chunks
         embed_document_chunks(document)
@@ -1052,8 +1037,6 @@ def delete_document(document_id):
     if not document:
         return jsonify(error="Document not found"), 404
 
-    # Cascades configured on the model relationships take care of deleting
-    # every Quiz/Question/Attempt/Answer/StudySession tied to this document.
     db.session.delete(document)
     db.session.commit()
     return jsonify(message="Document deleted")
@@ -1062,119 +1045,6 @@ def delete_document(document_id):
 def _get_owned_document(document_id, user_id):
     return Document.query.filter_by(id=document_id, user_id=user_id).first()
 
-
-
-
-
-@app.route("/classes/<int:class_id>/announcements", methods=["POST"])
-@jwt_required()
-@_require_role("teacher")
-def create_announcement(class_id):
-    user_id = int(get_jwt_identity())
-    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
-    if not class_:
-        return jsonify(error="Class not found"), 404
-
-    message = (request.get_json().get("message") or "").strip()
-    if not message:
-        return jsonify(error="Message is required"), 400
-    if len(message) > 2000:
-        return jsonify(error="Message is too long (max 2000 characters)"), 400
-
-    announcement = Announcement(class_id=class_id, teacher_id=user_id, message=message)
-    db.session.add(announcement)
-    db.session.commit()
-
-    return jsonify(
-        id=announcement.id,
-        message=announcement.message,
-        created_at=announcement.created_at.isoformat(),
-    )
-
-
-@app.route("/classes/<int:class_id>/announcements", methods=["GET"])
-@jwt_required()
-def list_announcements(class_id):
-    user_id = int(get_jwt_identity())
-    class_ = _get_accessible_class(class_id, user_id)
-    if not class_:
-        return jsonify(error="Class not found"), 404
-
-    announcements = (
-        Announcement.query.filter_by(class_id=class_id)
-        .order_by(Announcement.created_at.desc())
-        .all()
-    )
-    return jsonify(announcements=[
-        {
-            "id": a.id,
-            "message": a.message,
-            "created_at": a.created_at.isoformat(),
-        }
-        for a in announcements
-    ])
-
-
-@app.route("/announcements/<int:announcement_id>", methods=["DELETE"])
-@jwt_required()
-@_require_role("teacher")
-def delete_announcement(announcement_id):
-    user_id = int(get_jwt_identity())
-    announcement = Announcement.query.filter_by(id=announcement_id, teacher_id=user_id).first()
-    if not announcement:
-        return jsonify(error="Announcement not found"), 404
-    db.session.delete(announcement)
-    db.session.commit()
-    return jsonify(message="Announcement deleted")
-
-
-
-
-@app.route("/classes/<int:class_id>/gradebook-export", methods=["GET"])
-@jwt_required()
-@_require_role("teacher")
-def export_gradebook(class_id):
-    """Teacher-only: download a PDF gradebook for this class, reusing the
-    same aggregation as /classes/:id/performance."""
-    from flask import send_file
-    from pdf_export import generate_gradebook_pdf
-
-    user_id = int(get_jwt_identity())
-    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
-    if not class_:
-        return jsonify(error="Class not found"), 404
-
-    member_ids = [m.student_id for m in class_.memberships]
-    class_quiz_ids = [
-        ca.quiz_id for ca in ClassAssignment.query.filter_by(class_id=class_id).all()
-    ]
-
-    students = []
-    for sid in member_ids:
-        student = db.session.get(User, sid)
-        attempts = Attempt.query.filter(
-            Attempt.user_id == sid,
-            Attempt.quiz_id.in_(class_quiz_ids),
-            Attempt.submitted_at.isnot(None),
-        ).all()
-        avg = round(sum(a.percentage for a in attempts) / len(attempts), 1) if attempts else 0
-        students.append({
-            "username": student.username if student else "Unknown",
-            "attempts_count": len(attempts),
-            "average_percentage": avg,
-        })
-    students.sort(key=lambda s: s["username"].lower())
-
-    try:
-        pdf_bytes = generate_gradebook_pdf(class_.name, students)
-    except Exception as e:
-        logging.error(f"Gradebook PDF export failed: {e}")
-        return jsonify(error="PDF generation failed"), 502
-
-    buf = __import__("io").BytesIO(pdf_bytes)
-    safe_name = class_.name.replace(" ", "_")[:40]
-    return send_file(buf, mimetype="application/pdf", as_attachment=True,
-                     download_name=f"{safe_name}_gradebook.pdf")
 
 # ---------------------------------------------------------------------------
 # AI study aids (summary, key concepts, flashcards) - cached on Document
@@ -1410,10 +1280,6 @@ def create_quiz():
 
     text_for_prompt = get_prompt_text_for_document(document, f"{difficulty} difficulty quiz covering the whole document")
 
-    # Difficult tier generates up to 70 questions in one Gemini call - slow
-    # enough to risk a hung request or rate-limit timeout. Route it through
-    # the background job queue when Redis is available; Easy/Hard are fast
-    # enough that the added complexity of async isn't worth it for them.
     if difficulty == "difficult":
         from jobs import enqueue_quiz_generation
         job_id = enqueue_quiz_generation(
@@ -1547,20 +1413,7 @@ def _quiz_payload(quiz, include_answers=False, shuffle_seed=None):
     shuffle_seed: when provided, question ORDER is shuffled deterministically
     from that seed - stable across repeated fetches of the SAME attempt (a
     page refresh mid-quiz won't reorder things underneath the student), but
-    different between different students/attempts. This matters most for
-    assignments: many students take the exact same underlying Quiz row, and
-    without this every one of them sees identical question order, making it
-    trivial to call out answers by position ("question 3 is B") to people
-    sitting nearby.
-
-    MCQ option order is deliberately NOT shuffled here: each Question's
-    correct_answer is stored as a fixed key (e.g. "B") and grading (see
-    grading.py) compares the submitted key directly against that stored
-    value. Shuffling option positions without also threading the same
-    shuffle through grading would silently mis-grade every shuffled
-    question - a correctness bug, not just a cosmetic one. Reordering
-    which QUESTION comes first carries no such risk since each Question
-    keeps its own correct_answer regardless of list position.
+    different between different students/attempts.
     """
     import random
 
@@ -1936,6 +1789,115 @@ def remove_class_assignment(class_id, quiz_id):
     return jsonify(message="Assignment removed from class")
 
 
+@app.route("/classes/<int:class_id>/announcements", methods=["POST"])
+@jwt_required()
+@_require_role("teacher")
+def create_announcement(class_id):
+    user_id = int(get_jwt_identity())
+    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    message = (request.get_json().get("message") or "").strip()
+    if not message:
+        return jsonify(error="Message is required"), 400
+    if len(message) > 2000:
+        return jsonify(error="Message is too long (max 2000 characters)"), 400
+
+    announcement = Announcement(class_id=class_id, teacher_id=user_id, message=message)
+    db.session.add(announcement)
+    db.session.commit()
+
+    return jsonify(
+        id=announcement.id,
+        message=announcement.message,
+        created_at=announcement.created_at.isoformat(),
+    )
+
+
+@app.route("/classes/<int:class_id>/announcements", methods=["GET"])
+@jwt_required()
+def list_announcements(class_id):
+    user_id = int(get_jwt_identity())
+    class_ = _get_accessible_class(class_id, user_id)
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    announcements = (
+        Announcement.query.filter_by(class_id=class_id)
+        .order_by(Announcement.created_at.desc())
+        .all()
+    )
+    return jsonify(announcements=[
+        {
+            "id": a.id,
+            "message": a.message,
+            "created_at": a.created_at.isoformat(),
+        }
+        for a in announcements
+    ])
+
+
+@app.route("/announcements/<int:announcement_id>", methods=["DELETE"])
+@jwt_required()
+@_require_role("teacher")
+def delete_announcement(announcement_id):
+    user_id = int(get_jwt_identity())
+    announcement = Announcement.query.filter_by(id=announcement_id, teacher_id=user_id).first()
+    if not announcement:
+        return jsonify(error="Announcement not found"), 404
+    db.session.delete(announcement)
+    db.session.commit()
+    return jsonify(message="Announcement deleted")
+
+
+@app.route("/classes/<int:class_id>/gradebook-export", methods=["GET"])
+@jwt_required()
+@_require_role("teacher")
+def export_gradebook(class_id):
+    """Teacher-only: download a PDF gradebook for this class, reusing the
+    same aggregation as /classes/:id/performance."""
+    from flask import send_file
+    from pdf_export import generate_gradebook_pdf
+
+    user_id = int(get_jwt_identity())
+    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    member_ids = [m.student_id for m in class_.memberships]
+    class_quiz_ids = [
+        ca.quiz_id for ca in ClassAssignment.query.filter_by(class_id=class_id).all()
+    ]
+
+    students = []
+    for sid in member_ids:
+        student = db.session.get(User, sid)
+        attempts = Attempt.query.filter(
+            Attempt.user_id == sid,
+            Attempt.quiz_id.in_(class_quiz_ids),
+            Attempt.submitted_at.isnot(None),
+        ).all()
+        avg = round(sum(a.percentage for a in attempts) / len(attempts), 1) if attempts else 0
+        students.append({
+            "username": student.username if student else "Unknown",
+            "attempts_count": len(attempts),
+            "average_percentage": avg,
+        })
+    students.sort(key=lambda s: s["username"].lower())
+
+    try:
+        pdf_bytes = generate_gradebook_pdf(class_.name, students)
+    except Exception as e:
+        logging.error(f"Gradebook PDF export failed: {e}")
+        return jsonify(error="PDF generation failed"), 502
+
+    buf = __import__("io").BytesIO(pdf_bytes)
+    safe_name = class_.name.replace(" ", "_")[:40]
+    return send_file(buf, mimetype="application/pdf", as_attachment=True,
+                     download_name=f"{safe_name}_gradebook.pdf")
+
+
 def _get_accessible_class(class_id, user_id):
     class_ = Class.query.get(class_id)
     if not class_:
@@ -2015,10 +1977,6 @@ def create_assignment():
         logging.error(f"Assignment quiz generation error: {e}")
         return jsonify(error="Quiz generation service unavailable."), 502
 
-    # Generate a unique join code now, but it won't work for students
-    # (_get_accessible_quiz / join checks is_published) until the teacher
-    # explicitly publishes - generating it upfront means the teacher can
-    # see/share it from the review screen without an extra step later.
     join_code = _generate_join_code()
     for _ in range(5):
         if not Quiz.query.filter_by(join_code=join_code).first():
@@ -2055,8 +2013,6 @@ def create_assignment():
 
     db.session.commit()
 
-    # Include answers in the draft response - the teacher reviewing it
-    # needs to see correct answers/model answers, unlike a student.
     return jsonify(_quiz_payload(quiz, include_answers=True))
 
 
@@ -2115,7 +2071,6 @@ def edit_assignment_question(quiz_id, question_id):
 
     db.session.commit()
 
-    # Recalculate total marks in case this question's marks changed
     quiz.total_marks = sum(q.marks for q in quiz.questions)
     db.session.commit()
 
@@ -2259,8 +2214,6 @@ def assignment_results(quiz_id):
         )
 
     return jsonify(
-
-
         assignment={
             "id": quiz.id,
             "title": quiz.title,
@@ -2323,11 +2276,6 @@ def get_quiz(quiz_id):
     if not quiz:
         return jsonify(error="Quiz not found"), 404
 
-    # Shuffle question order per (quiz, student) - stable for this student
-    # across the whole attempt (refreshing mid-quiz won't reorder things),
-    # but different from every other student taking the same assignment.
-    # The quiz's own creator sees the canonical, unshuffled order when
-    # reviewing/previewing their own quiz.
     shuffle_seed = None
     if quiz.user_id != user_id:
         shuffle_seed = hash((quiz_id, user_id))
@@ -2349,11 +2297,6 @@ def start_attempt():
     if not quiz:
         return jsonify(error="Quiz not found"), 404
 
-    # Resume: if this student already has an unsubmitted attempt on this
-    # quiz, return that one instead of creating a duplicate. This is what
-    # lets a student who navigated away or refreshed mid-quiz pick up
-    # where they left off, with the timer correctly reflecting time
-    # already elapsed since they first started (not reset to full length).
     existing = (
         Attempt.query.filter_by(quiz_id=quiz.id, user_id=user_id, submitted_at=None)
         .order_by(Attempt.started_at.desc())
@@ -2491,7 +2434,6 @@ def submit_attempt(attempt_id):
     quiz = attempt.quiz
     has_theory = any(q.type == "theory" for q in quiz.questions)
 
-    # For gated flow: MCQ must have been submitted first
     if has_theory and attempt.mcq_submitted_at is None:
         return jsonify(
             error="Submit the MCQ section first via /submit-mcq"
@@ -2505,7 +2447,6 @@ def submit_attempt(attempt_id):
     }
 
     if has_theory:
-        # Gated flow: only grade the theory questions here (MCQ already done)
         theory_questions = [q for q in quiz.questions if q.type == "theory"]
         theory_batch = [
             (q, submitted_answers.get(q.id)) for q in theory_questions
@@ -2540,14 +2481,12 @@ def submit_attempt(attempt_id):
                 )
                 db.session.add(answer)
 
-        # Total = MCQ score already saved + new theory score
         theory_score = sum(
             r["score"] for r in results
         ) if theory_batch else 0
         total_score = (attempt.mcq_score or 0) + theory_score
 
     else:
-        # MCQ-only: grade everything in one go (unchanged from before)
         questions = quiz.questions
         answer_records = {}
 
@@ -2692,8 +2631,6 @@ def explain_attempt(attempt_id):
 
     answers_by_question = {a.question_id: a for a in attempt.answers}
 
-    # Only explain questions that lost marks, and only generate for ones
-    # that don't already have a cached explanation.
     to_explain = []  # (question, answer)
     for q in attempt.quiz.questions:
         a = answers_by_question.get(q.id)
@@ -2819,10 +2756,6 @@ def list_attempts():
 # ---------------------------------------------------------------------------
 DIFFICULTY_ORDER = ["easy", "hard", "difficult"]
 
-# Tuned to be a clear signal, not a hair-trigger: needs a real run of
-# strong (or weak) results before suggesting a change, and looks only at
-# the most recent attempts on THIS difficulty so a one-off bad day on
-# Hard doesn't get averaged away by a long history of doing well on Easy.
 RECOMMENDATION_LOOKBACK = 3
 STEP_UP_THRESHOLD = 80
 STEP_DOWN_THRESHOLD = 45
@@ -2832,10 +2765,7 @@ def _recommend_difficulty(document_id, user_id):
     """
     Looks at the student's most recent attempts on this document, AT
     THEIR CURRENT/LAST-USED DIFFICULTY, and suggests stepping up or down
-    one tier if performance is consistently strong or weak. Returns None
-    if there isn't enough history yet, or if performance doesn't clearly
-    warrant a change - this is meant to fire rarely and meaningfully, not
-    on every quiz.
+    one tier if performance is consistently strong or weak.
     """
     recent_attempts = (
         Attempt.query.join(Quiz)
@@ -2850,19 +2780,13 @@ def _recommend_difficulty(document_id, user_id):
     )
 
     if len(recent_attempts) < RECOMMENDATION_LOOKBACK:
-        return None  # not enough history on this document yet
+        return None
 
     last_difficulty = recent_attempts[0].quiz.difficulty
 
-    # Lecturer Style isn't a tier on the easy/hard/difficult ladder - there's
-    # no "step up/down" concept for it, so no recommendation applies when
-    # that's the most recent difficulty used on this document.
     if last_difficulty not in DIFFICULTY_ORDER:
         return None
 
-    # Only consider attempts at the same difficulty as the most recent one,
-    # so a step-up suggestion isn't triggered by mixing in old Easy scores
-    # after the student has already moved to Hard, and vice versa.
     same_tier_attempts = [
         a for a in recent_attempts if a.quiz.difficulty == last_difficulty
     ]
@@ -2895,7 +2819,7 @@ def _recommend_difficulty(document_id, user_id):
             "based_on_attempts": len(same_tier_attempts),
         }
 
-    return None  # performance is fine where it is - no suggestion needed
+    return None
 
 
 @app.route("/documents/<int:document_id>/recommended-difficulty", methods=["GET"])
@@ -2914,12 +2838,7 @@ def recommended_difficulty(document_id):
 @jwt_required()
 def document_mastery(document_id):
     """
-    Per-topic mastery breakdown for this student on this document: for
-    every topic tag seen across all of the student's submitted attempts,
-    aggregate marks earned vs marks possible. Questions without a topic
-    (older quizzes generated before this field existed, or any generation
-    where the AI omitted it) are grouped under "General" rather than
-    silently dropped, so totals always add up.
+    Per-topic mastery breakdown for this student on this document.
     """
     user_id = int(get_jwt_identity())
     document = _get_owned_document(document_id, user_id)
@@ -2936,7 +2855,7 @@ def document_mastery(document_id):
         .all()
     )
 
-    topic_stats = {}  # topic -> {"earned": float, "possible": int, "attempts": int}
+    topic_stats = {}
 
     for attempt in attempts:
         answers_by_question = {a.question_id: a for a in attempt.answers}
@@ -2966,8 +2885,6 @@ def document_mastery(document_id):
             }
         )
 
-    # Weakest first - that's the order a student actually wants to see
-    # when deciding what to focus on.
     topics.sort(key=lambda t: t["mastery_percentage"])
 
     return jsonify(topics=topics)
@@ -2980,17 +2897,12 @@ def create_weak_spots_quiz(document_id):
     """
     Generates a short, focused practice quiz on the student's weakest
     topics for this document, derived from their own mastery data.
-    Requires at least 2 distinct topics below 70% mastery with at least
-    2 questions seen each - otherwise there isn't enough signal yet to
-    target anything meaningfully, and a generic quiz is more useful.
     """
     user_id = int(get_jwt_identity())
     document = _get_owned_document(document_id, user_id)
     if not document:
         return jsonify(error="Document not found"), 404
 
-    # Reuse the same topic aggregation logic as /mastery directly rather
-    # than making an HTTP self-call.
     attempts = (
         Attempt.query.join(Quiz)
         .filter(
@@ -3029,7 +2941,6 @@ def create_weak_spots_quiz(document_id):
             "Take a few more quizzes on this document first."
         ), 400
 
-    # Cap at 5 topics so the prompt stays focused rather than diluted
     weak_topics = weak_topics[:5]
 
     weak_topics_str = ", ".join(weak_topics)
@@ -3123,11 +3034,7 @@ def document_performance(document_id):
 @jwt_required()
 def performance_overview():
     """
-    Cross-document performance summary - one row per document the student
-    has taken at least one quiz on, each with its own average and attempt
-    count, plus an overall total. Used by the sidebar's Performance hub so
-    students don't have to open a document first just to see how they're
-    doing.
+    Cross-document performance summary.
     """
     user_id = int(get_jwt_identity())
 
@@ -3172,10 +3079,6 @@ def performance_overview():
 # ---------------------------------------------------------------------------
 # Admin dashboard
 # ---------------------------------------------------------------------------
-# Every route below requires is_admin=True (see _require_admin) - a
-# privilege layer separate from role (student/teacher), not self-service.
-# An admin account is created by setting is_admin=True directly in the
-# database for now; see README for the one-time SQL.
 
 @app.route("/admin/overview", methods=["GET"])
 @jwt_required()

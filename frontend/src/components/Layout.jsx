@@ -33,8 +33,12 @@ const NAV_ICONS = {
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [role, setRole] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState(
+    () => localStorage.getItem("studymate_role") || null,
+  );
+  const [isAdmin, setIsAdmin] = useState(
+    () => localStorage.getItem("studymate_is_admin") === "true",
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   useSessionExpiryWarning();
 
@@ -44,6 +48,11 @@ const Layout = ({ children }) => {
       .then((data) => {
         setRole(data.role);
         setIsAdmin(Boolean(data.is_admin));
+        localStorage.setItem("studymate_role", data.role);
+        localStorage.setItem(
+          "studymate_is_admin",
+          String(Boolean(data.is_admin)),
+        );
       })
       .catch(() => {});
   }, []);
@@ -55,6 +64,8 @@ const Layout = ({ children }) => {
   const doLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("studymate_session_started_at");
+    localStorage.removeItem("studymate_role");
+    localStorage.removeItem("studymate_is_admin");
     navigate("/login");
   };
 

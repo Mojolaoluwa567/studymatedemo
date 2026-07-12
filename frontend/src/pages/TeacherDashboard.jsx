@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Copy, BarChart2, Users, Users2, Pencil, Trash2, CheckCircle2, FileEdit, Upload } from "lucide-react";
+import {
+  Copy,
+  BarChart2,
+  Users,
+  Users2,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  FileEdit,
+  Upload,
+} from "lucide-react";
 import { api, formatDate, gradeFromPercentage } from "../api";
 import Layout from "../components/Layout";
 import UploadPanel from "../components/UploadPanel";
@@ -50,8 +60,8 @@ const CreateAssignmentForm = ({ documents, onDraftCreated }) => {
   if (documents.length === 0) {
     return (
       <p className="text-sm text-muted">
-        Upload a document below first, then come back here to turn it into
-        an assignment.
+        Upload a document below first, then come back here to turn it into an
+        assignment.
       </p>
     );
   }
@@ -68,7 +78,9 @@ const CreateAssignmentForm = ({ documents, onDraftCreated }) => {
           >
             <option value="">Choose...</option>
             {documents.map((d) => (
-              <option key={d.id} value={d.id}>{d.title}</option>
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
             ))}
           </select>
         </div>
@@ -80,12 +92,16 @@ const CreateAssignmentForm = ({ documents, onDraftCreated }) => {
             className="w-full bg-bg border border-border rounded-lg px-3 py-2 outline-none focus:border-accent transition-colors"
           >
             {DIFFICULTY_OPTIONS.map((d) => (
-              <option key={d.value} value={d.value}>{d.label}</option>
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="block text-sm text-muted mb-1">Assignment name (optional)</label>
+          <label className="block text-sm text-muted mb-1">
+            Assignment name (optional)
+          </label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -96,7 +112,9 @@ const CreateAssignmentForm = ({ documents, onDraftCreated }) => {
       </div>
 
       {error && (
-        <p className="text-incorrect text-sm border border-incorrect/30 bg-incorrect/10 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-incorrect text-sm border border-incorrect/30 bg-incorrect/10 rounded-lg px-3 py-2">
+          {error}
+        </p>
       )}
 
       <button
@@ -120,7 +138,11 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = { question_text: text, marks: Number(marks), correct_answer: correctAnswer };
+      const payload = {
+        question_text: text,
+        marks: Number(marks),
+        correct_answer: correctAnswer,
+      };
       if (question.type === "mcq") payload.options = options;
       await onSave(question.id, payload);
     } finally {
@@ -155,16 +177,22 @@ const EditQuestionForm = ({ question, onSave, onCancel }) => {
               </button>
               <input
                 value={value}
-                onChange={(e) => setOptions((prev) => ({ ...prev, [key]: e.target.value }))}
+                onChange={(e) =>
+                  setOptions((prev) => ({ ...prev, [key]: e.target.value }))
+                }
                 className="flex-1 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent transition-colors"
               />
             </div>
           ))}
-          <p className="text-xs text-muted">Click a letter to mark it as the correct answer.</p>
+          <p className="text-xs text-muted">
+            Click a letter to mark it as the correct answer.
+          </p>
         </div>
       ) : (
         <div>
-          <label className="block text-xs text-muted mb-1">Model answer / marking points</label>
+          <label className="block text-xs text-muted mb-1">
+            Model answer / marking points
+          </label>
           <textarea
             value={correctAnswer}
             onChange={(e) => setCorrectAnswer(e.target.value)}
@@ -210,7 +238,8 @@ const ReviewDraftPanel = ({ draftId, onPublished, onClose }) => {
   const [publishing, setPublishing] = useState(false);
 
   const load = () => {
-    api.get(`/assignments/${draftId}/questions`)
+    api
+      .get(`/assignments/${draftId}/questions`)
       .then(setQuiz)
       .catch((err) => setError(err.message));
   };
@@ -219,7 +248,10 @@ const ReviewDraftPanel = ({ draftId, onPublished, onClose }) => {
 
   const handleSaveEdit = async (questionId, payload) => {
     try {
-      const updated = await api.patch(`/assignments/${draftId}/questions/${questionId}`, payload);
+      const updated = await api.patch(
+        `/assignments/${draftId}/questions/${questionId}`,
+        payload,
+      );
       setQuiz(updated);
       setEditingId(null);
       toast.success("Question updated");
@@ -230,7 +262,9 @@ const ReviewDraftPanel = ({ draftId, onPublished, onClose }) => {
 
   const handleDelete = async (questionId) => {
     try {
-      const updated = await api.delete(`/assignments/${draftId}/questions/${questionId}`);
+      const updated = await api.delete(
+        `/assignments/${draftId}/questions/${questionId}`,
+      );
       setQuiz(updated);
       toast.success("Question removed");
     } catch (err) {
@@ -276,7 +310,10 @@ const ReviewDraftPanel = ({ draftId, onPublished, onClose }) => {
           </p>
           <h3 className="font-semibold">{quiz.title}</h3>
         </div>
-        <button onClick={onClose} className="text-sm text-muted hover:text-ink transition-colors">
+        <button
+          onClick={onClose}
+          className="text-sm text-muted hover:text-ink transition-colors"
+        >
           Close
         </button>
       </div>
@@ -302,7 +339,9 @@ const ReviewDraftPanel = ({ draftId, onPublished, onClose }) => {
                 <>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <p className="text-sm font-medium leading-relaxed">
-                      <span className="font-mono text-accent mr-1.5">{idx + 1}.</span>
+                      <span className="font-mono text-accent mr-1.5">
+                        {idx + 1}.
+                      </span>
                       {q.question}
                     </p>
                     <span className="font-mono text-xs text-muted border border-border rounded px-1.5 py-0.5 shrink-0">
@@ -312,14 +351,23 @@ const ReviewDraftPanel = ({ draftId, onPublished, onClose }) => {
                   {q.type === "mcq" && q.options && (
                     <div className="text-xs text-muted space-y-0.5 mb-2 ml-5">
                       {Object.entries(q.options).map(([key, value]) => (
-                        <p key={key} className={key === q.correct_answer ? "text-correct font-medium" : ""}>
+                        <p
+                          key={key}
+                          className={
+                            key === q.correct_answer
+                              ? "text-correct font-medium"
+                              : ""
+                          }
+                        >
                           {key}. {value} {key === q.correct_answer && "✓"}
                         </p>
                       ))}
                     </div>
                   )}
                   {q.type === "theory" && (
-                    <p className="text-xs text-muted mb-2 ml-5">Model answer: {q.correct_answer}</p>
+                    <p className="text-xs text-muted mb-2 ml-5">
+                      Model answer: {q.correct_answer}
+                    </p>
                   )}
                   <div className="flex gap-2 ml-5">
                     <button
@@ -361,7 +409,9 @@ const AssignmentCard = ({ assignment, onViewResults, onReview, selected }) => {
   };
 
   return (
-    <div className={`bg-surface border rounded-xl p-5 transition-colors ${selected ? "border-accent" : "border-border"}`}>
+    <div
+      className={`bg-surface border rounded-xl p-5 transition-colors ${selected ? "border-accent" : "border-border"}`}
+    >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -373,10 +423,13 @@ const AssignmentCard = ({ assignment, onViewResults, onReview, selected }) => {
             )}
           </div>
           <p className="text-xs text-muted mt-1 font-mono capitalize">
-            {assignment.difficulty} · {assignment.num_questions} questions · {assignment.total_marks} marks
+            {assignment.difficulty} · {assignment.num_questions} questions ·{" "}
+            {assignment.total_marks} marks
           </p>
         </div>
-        <span className="text-xs text-muted font-mono whitespace-nowrap">{formatDate(assignment.created_at)}</span>
+        <span className="text-xs text-muted font-mono whitespace-nowrap">
+          {formatDate(assignment.created_at)}
+        </span>
       </div>
 
       {assignment.is_published ? (
@@ -400,7 +453,8 @@ const AssignmentCard = ({ assignment, onViewResults, onReview, selected }) => {
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted flex items-center gap-1">
           <Users size={12} />
-          {assignment.submitted_attempt_count} submission{assignment.submitted_attempt_count === 1 ? "" : "s"}
+          {assignment.submitted_attempt_count} submission
+          {assignment.submitted_attempt_count === 1 ? "" : "s"}
         </p>
         {assignment.is_published && (
           <button
@@ -420,31 +474,55 @@ const ResultsPanel = ({ assignmentId, onClose }) => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get(`/assignments/${assignmentId}/results`).then(setData).catch((err) => setError(err.message));
+    api
+      .get(`/assignments/${assignmentId}/results`)
+      .then(setData)
+      .catch((err) => setError(err.message));
   }, [assignmentId]);
 
   if (error) {
-    return <div className="bg-surface border border-border rounded-xl p-5"><p className="text-incorrect text-sm">{error}</p></div>;
+    return (
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <p className="text-incorrect text-sm">{error}</p>
+      </div>
+    );
   }
   if (!data) {
-    return <div className="bg-surface border border-border rounded-xl p-5"><Skeleton className="h-32" /></div>;
+    return (
+      <div className="bg-surface border border-border rounded-xl p-5">
+        <Skeleton className="h-32" />
+      </div>
+    );
   }
 
-  const avg = data.results.length > 0
-    ? Math.round((data.results.reduce((sum, r) => sum + r.percentage, 0) / data.results.length) * 10) / 10
-    : 0;
+  const avg =
+    data.results.length > 0
+      ? Math.round(
+          (data.results.reduce((sum, r) => sum + r.percentage, 0) /
+            data.results.length) *
+            10,
+        ) / 10
+      : 0;
 
   return (
     <div className="bg-surface border border-border rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold">{data.assignment.title} — results</h3>
-        <button onClick={onClose} className="text-sm text-muted hover:text-ink transition-colors">Close</button>
+        <button
+          onClick={onClose}
+          className="text-sm text-muted hover:text-ink transition-colors"
+        >
+          Close
+        </button>
       </div>
 
       {data.results.length === 0 ? (
         <p className="text-sm text-muted">
           No submissions yet. Share the join code{" "}
-          <span className="font-mono text-accent">{data.assignment.join_code}</span> with students.
+          <span className="font-mono text-accent">
+            {data.assignment.join_code}
+          </span>{" "}
+          with students.
         </p>
       ) : (
         <>
@@ -454,13 +532,28 @@ const ResultsPanel = ({ assignmentId, onClose }) => {
           </div>
           <div className="space-y-2">
             {data.results.map((r) => (
-              <div key={r.attempt_id} className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2">
+              <div
+                key={r.attempt_id}
+                className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2"
+              >
                 <div>
                   <p className="font-medium">{r.student_username}</p>
-                  <p className="text-xs text-muted">{formatDate(r.submitted_at)}</p>
+                  <p className="text-xs text-muted flex items-center gap-2">
+                    {formatDate(r.submitted_at)}
+                    {r.tab_switch_count > 0 && (
+                      <span
+                        className="text-accent"
+                        title="Number of times this student's tab lost focus during the attempt - not proof of anything, just a data point."
+                      >
+                        · left tab {r.tab_switch_count}×
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-muted">{r.total_score}/{r.max_score}</span>
+                  <span className="font-mono text-xs text-muted">
+                    {r.total_score}/{r.max_score}
+                  </span>
                   <span className="font-mono text-xs w-7 h-7 flex items-center justify-center rounded-full border border-accent/30 bg-accent-soft text-accent">
                     {gradeFromPercentage(r.percentage)}
                   </span>
@@ -500,16 +593,32 @@ const BulkUploadPanel = ({ onUploaded }) => {
 
   return (
     <div>
-      <label className={`flex items-center gap-2 border border-dashed border-border rounded-lg px-4 py-3 cursor-pointer hover:border-accent transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+      <label
+        className={`flex items-center gap-2 border border-dashed border-border rounded-lg px-4 py-3 cursor-pointer hover:border-accent transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+      >
         <Upload size={16} className="text-muted" />
-        <span className="text-sm text-muted">{uploading ? "Uploading..." : "Click to choose multiple PDFs or Word docs"}</span>
-        <input type="file" className="hidden" multiple accept=".pdf,.docx" onChange={handleChange} />
+        <span className="text-sm text-muted">
+          {uploading
+            ? "Uploading..."
+            : "Click to choose multiple PDFs or Word docs"}
+        </span>
+        <input
+          type="file"
+          className="hidden"
+          multiple
+          accept=".pdf,.docx"
+          onChange={handleChange}
+        />
       </label>
       {results && (
         <div className="mt-3 space-y-1">
           {results.map((r, i) => (
-            <p key={i} className={`text-xs font-mono ${r.success ? "text-correct" : "text-incorrect"}`}>
-              {r.success ? "✓" : "✗"} {r.filename}{r.error ? ` — ${r.error}` : ""}
+            <p
+              key={i}
+              className={`text-xs font-mono ${r.success ? "text-correct" : "text-incorrect"}`}
+            >
+              {r.success ? "✓" : "✗"} {r.filename}
+              {r.error ? ` — ${r.error}` : ""}
             </p>
           ))}
         </div>
@@ -522,7 +631,10 @@ const ClassesSummaryCard = () => {
   const [classes, setClasses] = useState(null);
 
   useEffect(() => {
-    api.get("/classes").then((d) => setClasses(d.classes)).catch(() => setClasses([]));
+    api
+      .get("/classes")
+      .then((d) => setClasses(d.classes))
+      .catch(() => setClasses([]));
   }, []);
 
   return (
@@ -536,17 +648,24 @@ const ClassesSummaryCard = () => {
         </Link>
       </div>
       <p className="text-xs text-muted mb-3">
-        Group students so every assignment you publish is instantly visible to everyone in the class.
+        Group students so every assignment you publish is instantly visible to
+        everyone in the class.
       </p>
       {classes === null ? (
         <p className="text-sm text-muted">Loading...</p>
       ) : classes.length === 0 ? (
-        <p className="text-sm text-muted">No classes yet — create one from the Classes page.</p>
+        <p className="text-sm text-muted">
+          No classes yet — create one from the Classes page.
+        </p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {classes.map((c) => (
-            <span key={c.id} className="text-xs font-mono border border-border rounded-full px-3 py-1">
-              {c.name} · {c.member_count} member{c.member_count === 1 ? "" : "s"}
+            <span
+              key={c.id}
+              className="text-xs font-mono border border-border rounded-full px-3 py-1"
+            >
+              {c.name} · {c.member_count} member
+              {c.member_count === 1 ? "" : "s"}
             </span>
           ))}
         </div>
@@ -582,7 +701,9 @@ const TeacherDashboard = () => {
     }
   };
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   const handleDraftCreated = (draftId) => {
     setReviewingDraftId(draftId);
@@ -602,18 +723,26 @@ const TeacherDashboard = () => {
           {profile ? `Welcome back, ${profile.username}` : "Welcome back"}
         </h1>
         <p className="text-muted text-sm">
-          Create assignments from your course material and track how your students do.
+          Create assignments from your course material and track how your
+          students do.
         </p>
       </div>
 
       {error && (
-        <p className="text-incorrect text-sm border border-incorrect/30 bg-incorrect/10 rounded-lg px-3 py-2 mb-6">{error}</p>
+        <p className="text-incorrect text-sm border border-incorrect/30 bg-incorrect/10 rounded-lg px-3 py-2 mb-6">
+          {error}
+        </p>
       )}
 
       <div className="bg-surface border border-border rounded-xl p-5 mb-8">
         <h2 className="font-semibold mb-4">Create an assignment</h2>
-        {loading ? <Skeleton className="h-24" /> : (
-          <CreateAssignmentForm documents={documents} onDraftCreated={handleDraftCreated} />
+        {loading ? (
+          <Skeleton className="h-24" />
+        ) : (
+          <CreateAssignmentForm
+            documents={documents}
+            onDraftCreated={handleDraftCreated}
+          />
         )}
       </div>
 
@@ -621,10 +750,15 @@ const TeacherDashboard = () => {
         <div>
           <h2 className="text-lg font-semibold mb-4">Your assignments</h2>
           {loading ? (
-            <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>
+            <div className="space-y-3">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+            </div>
           ) : assignments.length === 0 ? (
             <div className="text-center py-12 border border-dashed border-border rounded-xl">
-              <p className="text-muted text-sm">No assignments yet. Create one above.</p>
+              <p className="text-muted text-sm">
+                No assignments yet. Create one above.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -632,9 +766,17 @@ const TeacherDashboard = () => {
                 <AssignmentCard
                   key={a.id}
                   assignment={a}
-                  selected={viewingResultsFor === a.id || reviewingDraftId === a.id}
-                  onViewResults={(id) => { setViewingResultsFor(id); setReviewingDraftId(null); }}
-                  onReview={(id) => { setReviewingDraftId(id); setViewingResultsFor(null); }}
+                  selected={
+                    viewingResultsFor === a.id || reviewingDraftId === a.id
+                  }
+                  onViewResults={(id) => {
+                    setViewingResultsFor(id);
+                    setReviewingDraftId(null);
+                  }}
+                  onReview={(id) => {
+                    setReviewingDraftId(id);
+                    setViewingResultsFor(null);
+                  }}
                 />
               ))}
             </div>
@@ -652,10 +794,15 @@ const TeacherDashboard = () => {
               onClose={() => setReviewingDraftId(null)}
             />
           ) : viewingResultsFor ? (
-            <ResultsPanel assignmentId={viewingResultsFor} onClose={() => setViewingResultsFor(null)} />
+            <ResultsPanel
+              assignmentId={viewingResultsFor}
+              onClose={() => setViewingResultsFor(null)}
+            />
           ) : (
             <div className="text-center py-12 border border-dashed border-border rounded-xl">
-              <p className="text-muted text-sm">Select an assignment to view results, or review a draft.</p>
+              <p className="text-muted text-sm">
+                Select an assignment to view results, or review a draft.
+              </p>
             </div>
           )}
         </div>
@@ -667,27 +814,37 @@ const TeacherDashboard = () => {
       {/* Bulk upload */}
       <div className="bg-surface border border-border rounded-xl p-5 mb-8 mt-6">
         <h2 className="font-semibold mb-1">Bulk upload</h2>
-        <p className="text-xs text-muted mb-3">Upload multiple PDFs or Word docs at once.</p>
+        <p className="text-xs text-muted mb-3">
+          Upload multiple PDFs or Word docs at once.
+        </p>
         <BulkUploadPanel onUploaded={loadAll} />
       </div>
 
       {/* Classes */}
       <ClassesSummaryCard />
 
-
       {loading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
       ) : documents.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-border rounded-xl">
-          <p className="text-muted text-sm">No documents yet. Add one above to start creating assignments.</p>
+          <p className="text-muted text-sm">
+            No documents yet. Add one above to start creating assignments.
+          </p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {documents.map((doc) => (
-            <div key={doc.id} className="bg-surface border border-border rounded-xl p-4">
+            <div
+              key={doc.id}
+              className="bg-surface border border-border rounded-xl p-4"
+            >
               <h3 className="font-medium leading-snug">{doc.title}</h3>
               <p className="text-xs text-muted mt-1 font-mono">
-                {doc.page_count} page{doc.page_count === 1 ? "" : "s"} · {formatDate(doc.uploaded_at)}
+                {doc.page_count} page{doc.page_count === 1 ? "" : "s"} ·{" "}
+                {formatDate(doc.uploaded_at)}
               </p>
             </div>
           ))}

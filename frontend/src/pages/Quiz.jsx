@@ -244,6 +244,23 @@ const Quiz = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (
+        document.hidden &&
+        attemptIdRef.current &&
+        phaseRef.current !== "submitted"
+      ) {
+        api
+          .post(`/attempts/${attemptIdRef.current}/tab-switch`, {})
+          .catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
   // Keyboard shortcuts: arrow keys to move between questions, number keys
   // (1-4) to pick an MCQ option. Ignored entirely while typing in the
   // theory-answer textarea, so a student writing "in 1990..." or using

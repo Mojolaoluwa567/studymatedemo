@@ -22,6 +22,8 @@ import Classes from "./pages/Classes";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./security/PrivateRoute";
+import ClassPerformance from "./pages/ClassPerformance";
+import ClassRisk from "./pages/ClassRisk";
 
 const App = () => {
   return (
@@ -47,6 +49,11 @@ const App = () => {
           <Route path="/join" element={<JoinAssignment />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/classes" element={<Classes />} />
+          <Route
+            path="/classes/:id/performance"
+            element={<ClassPerformance />}
+          />
+          <Route path="/classes/:id/risk" element={<ClassRisk />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/documents/:id/study" element={<StudySession />} />
           <Route path="/documents/:id/quiz-setup" element={<QuizSetup />} />
