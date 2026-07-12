@@ -101,6 +101,11 @@ def assess_student_risk(student_id, class_quiz_ids):
     with a risk score (0-100), level, and the specific reasons that
     triggered it - so a teacher sees WHY, not just a number.
     """
+    if not class_quiz_ids:
+        # Nothing has been assigned to this class yet - there's no basis
+        # to assess risk against, so don't flag anyone.
+        return None
+
     signals = _student_signals(student_id, class_quiz_ids)
     reasons = []
     score = 0

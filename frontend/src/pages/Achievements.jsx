@@ -4,20 +4,7 @@ import { api } from "../api";
 import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
 import BackButton from "../components/BackButton";
-
-const AchievementBadge = ({ achievement }) => (
-  <div
-    className={`card rounded-xl border p-4 text-center transition-colors ${
-      achievement.unlocked
-        ? "border-accent/30 bg-accent-soft"
-        : "border-border bg-surface opacity-50"
-    }`}
-  >
-    <p className="text-2xl mb-1">{achievement.unlocked ? "🏆" : "🔒"}</p>
-    <p className="text-sm font-medium">{achievement.title}</p>
-    <p className="text-xs text-muted mt-1">{achievement.description}</p>
-  </div>
-);
+import AchievementBadge from "../components/AchievementBadge";
 
 const Achievements = () => {
   usePageTitle("Achievements");

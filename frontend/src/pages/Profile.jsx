@@ -18,24 +18,7 @@ import Layout from "../components/Layout";
 import usePageTitle from "../hooks/usePageTitle";
 import StatCard from "../components/StatCard";
 import BackButton from "../components/BackButton";
-
-const AchievementBadge = ({ achievement }) => (
-  <div
-    className={`rounded-xl border p-4 text-center transition-colors ${
-      achievement.unlocked
-        ? "border-accent/30 bg-accent-soft"
-        : "border-border bg-surface opacity-50"
-    }`}
-  >
-    {achievement.unlocked ? (
-      <Trophy size={24} className="text-accent mx-auto mb-1" />
-    ) : (
-      <Lock size={24} className="text-muted mx-auto mb-1" />
-    )}
-    <p className="text-sm font-medium">{achievement.title}</p>
-    <p className="text-xs text-muted mt-1">{achievement.description}</p>
-  </div>
-);
+import AchievementBadge from "../components/AchievementBadge";
 
 const Profile = () => {
   usePageTitle("Profile");

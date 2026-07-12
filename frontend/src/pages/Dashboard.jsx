@@ -470,7 +470,7 @@ const Dashboard = () => {
                   >
                     <Crosshair size={13} />
                     {weakSpotsLoadingId === doc.id
-                      ? "Generating..."
+                      ? "Generating... this can take a moment"
                       : "Weak spots"}
                   </button>
                 </div>
