@@ -264,3 +264,55 @@ def _generate_study_guide_pdf_weasyprint(document, summary, key_concepts, flashc
     </body></html>
     """
     return HTML(string=html).write_pdf()
+
+def generate_gradebook_pdf(class_name, students):
+    """
+    Generates a printable gradebook PDF: one row per student with their
+    average score and attempt count for a class. `students` is the same
+    list shape returned by /classes/:id/performance's "students" field.
+    Returns bytes.
+    """
+    try:
+        return _generate_gradebook_pdf_weasyprint(class_name, students)
+    except Exception as e:
+        logging.warning(f"WeasyPrint gradebook PDF failed, falling back to ReportLab: {e}")
+        from pdf_export_reportlab import generate_gradebook_pdf_reportlab
+        return generate_gradebook_pdf_reportlab(class_name, students)
+
+
+def _generate_gradebook_pdf_weasyprint(class_name, students):
+    from weasyprint import HTML
+
+    rows_html = "".join(
+        f"""
+        <tr>
+            <td>{escape(s['username'])}</td>
+            <td>{s['attempts_count']}</td>
+            <td>{s['average_percentage']}%</td>
+        </tr>
+        """
+        for s in students
+    )
+
+    html = f"""
+    <html>
+    <head><style>
+    {BASE_CSS}
+    table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
+    th, td {{ text-align: left; padding: 8px 10px; border-bottom: 1px solid {BORDER}; font-size: 11px; }}
+    th {{ color: {MUTED}; font-weight: 600; text-transform: uppercase; font-size: 9px; }}
+    </style></head>
+    <body>
+        <p style="color: {ACCENT}; font-size: 9px; font-weight: 600;">StudyMate</p>
+        <h1 style="font-size: 20px; margin: 4px 0;">Gradebook — {escape(class_name)}</h1>
+        <p style="color: {MUTED}; font-size: 10px; margin-bottom: 12px;">
+            Generated {datetime.now().strftime('%d %b %Y')}
+        </p>
+        <table>
+            <tr><th>Student</th><th>Attempts</th><th>Average</th></tr>
+            {rows_html}
+        </table>
+    </body>
+    </html>
+    """
+    return HTML(string=html).write_pdf()

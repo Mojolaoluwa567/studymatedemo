@@ -137,3 +137,49 @@ def generate_study_guide_pdf_reportlab(document, summary, key_concepts, flashcar
     doc.build(story)
     buf.seek(0)
     return buf.read()
+
+
+def generate_gradebook_pdf_reportlab(class_name, students):
+    """Fallback gradebook PDF using reportlab. Returns bytes."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.colors import HexColor, black
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.units import cm
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
+
+    ACCENT = HexColor("#6366F1")
+    LIGHT_GRAY = HexColor("#f1f5f9")
+    MID_GRAY = HexColor("#94a3b8")
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=18, textColor=black, spaceAfter=4)
+    sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontSize=10, textColor=MID_GRAY, spaceAfter=12)
+
+    story = [
+        Paragraph("StudyMate", ParagraphStyle("brand", parent=styles["Normal"], fontSize=9, textColor=ACCENT)),
+        Spacer(1, 6),
+        Paragraph(f"Gradebook — {class_name}", title_style),
+        Paragraph(f"Generated {datetime.now().strftime('%d %b %Y')}", sub_style),
+        Spacer(1, 8),
+    ]
+
+    table_data = [["Student", "Attempts", "Average"]]
+    for s in students:
+        table_data.append([s["username"], str(s["attempts_count"]), f"{s['average_percentage']}%"])
+
+    table = Table(table_data, colWidths=[7*cm, 4*cm, 4*cm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), LIGHT_GRAY),
+        ("TEXTCOLOR", (0, 0), (-1, 0), MID_GRAY),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.5, LIGHT_GRAY),
+    ]))
+    story.append(table)
+
+    doc.build(story)
+    return buf.getvalue()

@@ -30,6 +30,7 @@ from models import (
     Class,
     ClassMembership,
     ClassAssignment,
+    Announcement,
 )
 from content_ingestion import (
     extract_text_from_pdf,
@@ -59,6 +60,7 @@ from achievements import (
     compute_stats,
     check_and_unlock_achievements,
     get_achievements_for_user,
+    check_and_unlock_teacher_achievements,
 )
 from admin import (
     get_admin_overview,
@@ -253,7 +255,9 @@ def google_auth():
         user = User.query.filter_by(email=email).first()
 
         if user:
-            # Link the existing account to Google
+            # Link the existing account to Google - this is an existing
+            # user signing in a new way, not a new signup, so no welcome
+            # email here (they already got one when they first signed up).
             user.google_id = google_id
             db.session.commit()
 
@@ -290,14 +294,14 @@ def google_auth():
             db.session.add(user)
             db.session.commit()
 
-        try:
+            try:
                 import threading
                 threading.Thread(
                     target=send_welcome_email,
                     args=(email, username, role),
                     daemon=True,
                 ).start()
-        except Exception as e:
+            except Exception as e:
                 logging.warning(
                     f"Welcome email failed for Google signup {username}: {e}"
                 )
@@ -507,7 +511,9 @@ def profile_stats():
 @jwt_required()
 def list_achievements():
     user_id = int(get_jwt_identity())
-    return jsonify(achievements=get_achievements_for_user(user_id))
+    user = db.session.get(User, user_id)
+    is_teacher = bool(user and user.role == "teacher")
+    return jsonify(achievements=get_achievements_for_user(user_id, is_teacher=is_teacher))
 
 
 @app.route("/forgot-password", methods=["POST"])
@@ -1057,6 +1063,119 @@ def _get_owned_document(document_id, user_id):
     return Document.query.filter_by(id=document_id, user_id=user_id).first()
 
 
+
+
+
+@app.route("/classes/<int:class_id>/announcements", methods=["POST"])
+@jwt_required()
+@_require_role("teacher")
+def create_announcement(class_id):
+    user_id = int(get_jwt_identity())
+    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    message = (request.get_json().get("message") or "").strip()
+    if not message:
+        return jsonify(error="Message is required"), 400
+    if len(message) > 2000:
+        return jsonify(error="Message is too long (max 2000 characters)"), 400
+
+    announcement = Announcement(class_id=class_id, teacher_id=user_id, message=message)
+    db.session.add(announcement)
+    db.session.commit()
+
+    return jsonify(
+        id=announcement.id,
+        message=announcement.message,
+        created_at=announcement.created_at.isoformat(),
+    )
+
+
+@app.route("/classes/<int:class_id>/announcements", methods=["GET"])
+@jwt_required()
+def list_announcements(class_id):
+    user_id = int(get_jwt_identity())
+    class_ = _get_accessible_class(class_id, user_id)
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    announcements = (
+        Announcement.query.filter_by(class_id=class_id)
+        .order_by(Announcement.created_at.desc())
+        .all()
+    )
+    return jsonify(announcements=[
+        {
+            "id": a.id,
+            "message": a.message,
+            "created_at": a.created_at.isoformat(),
+        }
+        for a in announcements
+    ])
+
+
+@app.route("/announcements/<int:announcement_id>", methods=["DELETE"])
+@jwt_required()
+@_require_role("teacher")
+def delete_announcement(announcement_id):
+    user_id = int(get_jwt_identity())
+    announcement = Announcement.query.filter_by(id=announcement_id, teacher_id=user_id).first()
+    if not announcement:
+        return jsonify(error="Announcement not found"), 404
+    db.session.delete(announcement)
+    db.session.commit()
+    return jsonify(message="Announcement deleted")
+
+
+
+
+@app.route("/classes/<int:class_id>/gradebook-export", methods=["GET"])
+@jwt_required()
+@_require_role("teacher")
+def export_gradebook(class_id):
+    """Teacher-only: download a PDF gradebook for this class, reusing the
+    same aggregation as /classes/:id/performance."""
+    from flask import send_file
+    from pdf_export import generate_gradebook_pdf
+
+    user_id = int(get_jwt_identity())
+    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    member_ids = [m.student_id for m in class_.memberships]
+    class_quiz_ids = [
+        ca.quiz_id for ca in ClassAssignment.query.filter_by(class_id=class_id).all()
+    ]
+
+    students = []
+    for sid in member_ids:
+        student = db.session.get(User, sid)
+        attempts = Attempt.query.filter(
+            Attempt.user_id == sid,
+            Attempt.quiz_id.in_(class_quiz_ids),
+            Attempt.submitted_at.isnot(None),
+        ).all()
+        avg = round(sum(a.percentage for a in attempts) / len(attempts), 1) if attempts else 0
+        students.append({
+            "username": student.username if student else "Unknown",
+            "attempts_count": len(attempts),
+            "average_percentage": avg,
+        })
+    students.sort(key=lambda s: s["username"].lower())
+
+    try:
+        pdf_bytes = generate_gradebook_pdf(class_.name, students)
+    except Exception as e:
+        logging.error(f"Gradebook PDF export failed: {e}")
+        return jsonify(error="PDF generation failed"), 502
+
+    buf = __import__("io").BytesIO(pdf_bytes)
+    safe_name = class_.name.replace(" ", "_")[:40]
+    return send_file(buf, mimetype="application/pdf", as_attachment=True,
+                     download_name=f"{safe_name}_gradebook.pdf")
+
 # ---------------------------------------------------------------------------
 # AI study aids (summary, key concepts, flashcards) - cached on Document
 # ---------------------------------------------------------------------------
@@ -1515,6 +1634,7 @@ def create_class():
     )
     db.session.add(class_)
     db.session.commit()
+    check_and_unlock_teacher_achievements(user_id)
     return jsonify(_class_payload(class_))
 
 
@@ -1542,6 +1662,204 @@ def get_class(class_id):
         return jsonify(error="Class not found"), 404
     return jsonify(_class_payload(class_, include_members=True, include_assignments=True))
 
+@app.route("/classes/<int:class_id>/performance", methods=["GET"])
+@jwt_required()
+@_require_role("teacher")
+def class_performance(class_id):
+    """
+    Teacher-only: aggregated performance across every student in this
+    class, scoped to attempts on assignments actually tagged to this
+    class (not a student's unrelated personal quizzes). Powers the
+    class-level analytics dashboard.
+    """
+    user_id = int(get_jwt_identity())
+    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    member_ids = [m.student_id for m in class_.memberships]
+    class_quiz_ids = [
+        ca.quiz_id
+        for ca in ClassAssignment.query.filter_by(class_id=class_id).all()
+    ]
+
+    if not member_ids or not class_quiz_ids:
+        return jsonify(
+            class_name=class_.name,
+            member_count=len(member_ids),
+            class_average=0,
+            students=[],
+            assignments=[],
+            topic_breakdown=[],
+            trend=[],
+        )
+
+    attempts = (
+        Attempt.query.filter(
+            Attempt.user_id.in_(member_ids),
+            Attempt.quiz_id.in_(class_quiz_ids),
+            Attempt.submitted_at.isnot(None),
+        )
+        .order_by(Attempt.submitted_at.asc())
+        .all()
+    )
+
+    # Per-student summary
+    students_map = {}
+    for sid in member_ids:
+        student = db.session.get(User, sid)
+        students_map[sid] = {
+            "student_id": sid,
+            "username": student.username if student else "Unknown",
+            "attempts_count": 0,
+            "total_percentage": 0,
+            "average_percentage": 0,
+            "last_submitted_at": None,
+        }
+    for a in attempts:
+        entry = students_map[a.user_id]
+        entry["attempts_count"] += 1
+        entry["total_percentage"] += a.percentage
+        if not entry["last_submitted_at"] or a.submitted_at > entry["last_submitted_at"]:
+            entry["last_submitted_at"] = a.submitted_at
+
+    students = []
+    for entry in students_map.values():
+        if entry["attempts_count"] > 0:
+            entry["average_percentage"] = round(
+                entry["total_percentage"] / entry["attempts_count"], 1
+            )
+        entry["last_submitted_at"] = (
+            entry["last_submitted_at"].isoformat()
+            if entry["last_submitted_at"]
+            else None
+        )
+        del entry["total_percentage"]
+        students.append(entry)
+    students.sort(key=lambda s: s["average_percentage"])
+
+    class_average = (
+        round(sum(a.percentage for a in attempts) / len(attempts), 1)
+        if attempts
+        else 0
+    )
+
+    # Per-assignment completion rate
+    assignments = []
+    for quiz_id in class_quiz_ids:
+        quiz = db.session.get(Quiz, quiz_id)
+        if not quiz:
+            continue
+        submitted_count = len(
+            {a.user_id for a in attempts if a.quiz_id == quiz_id}
+        )
+        assignments.append({
+            "quiz_id": quiz_id,
+            "title": quiz.title,
+            "submitted_count": submitted_count,
+            "member_count": len(member_ids),
+            "completion_rate": round(
+                (submitted_count / len(member_ids)) * 100, 1
+            ) if member_ids else 0,
+        })
+
+    # Topic breakdown across the whole class
+    topic_stats = {}
+    for a in attempts:
+        answers_by_question = {ans.question_id: ans for ans in a.answers}
+        for q in a.quiz.questions:
+            answer = answers_by_question.get(q.id)
+            if not answer:
+                continue
+            topic = q.topic or "General"
+            if topic not in topic_stats:
+                topic_stats[topic] = {"earned": 0, "possible": 0}
+            topic_stats[topic]["earned"] += answer.score_awarded or 0
+            topic_stats[topic]["possible"] += q.marks
+
+    topic_breakdown = [
+        {
+            "topic": topic,
+            "mastery_percentage": round((s["earned"] / s["possible"]) * 100, 1)
+            if s["possible"] > 0
+            else 0,
+        }
+        for topic, s in topic_stats.items()
+    ]
+    topic_breakdown.sort(key=lambda t: t["mastery_percentage"])
+
+    # Weekly trend: class average grouped by ISO week of submission
+    trend_map = {}
+    for a in attempts:
+        week_key = a.submitted_at.strftime("%Y-W%W")
+        if week_key not in trend_map:
+            trend_map[week_key] = {"total": 0, "count": 0}
+        trend_map[week_key]["total"] += a.percentage
+        trend_map[week_key]["count"] += 1
+    trend = [
+        {
+            "week": week,
+            "average_percentage": round(v["total"] / v["count"], 1),
+        }
+        for week, v in sorted(trend_map.items())
+    ]
+
+    return jsonify(
+        class_name=class_.name,
+        member_count=len(member_ids),
+        class_average=class_average,
+        students=students,
+        assignments=assignments,
+        topic_breakdown=topic_breakdown,
+        trend=trend,
+    )
+
+@app.route("/classes/<int:class_id>/risk", methods=["GET"])
+@jwt_required()
+@_require_role("teacher")
+def class_risk_detection(class_id):
+    """
+    Teacher-only: flags students in this class showing signs of falling
+    behind - missed assignments, declining scores, dropped study time, or
+    inactivity. Rules-based (see risk_detection.py); an AI-written
+    suggestion is added per flagged student on a best-effort basis.
+    """
+    from risk_detection import assess_student_risk, get_ai_risk_note
+
+    user_id = int(get_jwt_identity())
+    class_ = Class.query.filter_by(id=class_id, teacher_id=user_id).first()
+    if not class_:
+        return jsonify(error="Class not found"), 404
+
+    member_ids = [m.student_id for m in class_.memberships]
+    class_quiz_ids = [
+        ca.quiz_id
+        for ca in ClassAssignment.query.filter_by(class_id=class_id).all()
+    ]
+
+    flagged = []
+    for sid in member_ids:
+        risk = assess_student_risk(sid, class_quiz_ids)
+        if risk:
+            student = db.session.get(User, sid)
+            risk["username"] = student.username if student else "Unknown"
+            try:
+                risk["ai_suggestion"] = get_ai_risk_note(
+                    risk["username"], risk["reasons"]
+                )
+            except Exception as e:
+                logging.warning(f"AI risk note failed for student {sid}: {e}")
+                risk["ai_suggestion"] = None
+            flagged.append(risk)
+
+    flagged.sort(key=lambda r: r["risk_score"], reverse=True)
+
+    return jsonify(
+        class_name=class_.name,
+        total_students=len(member_ids),
+        flagged_count=len(flagged),
+        students=flagged,
+    )
 
 @app.route("/classes/<int:class_id>", methods=["DELETE"])
 @jwt_required()
@@ -1858,6 +2176,7 @@ def publish_assignment(quiz_id):
 
     quiz.is_published = True
     db.session.commit()
+    check_and_unlock_teacher_achievements(user_id)
 
     return jsonify(_quiz_payload(quiz, include_answers=True))
 
@@ -1935,10 +2254,13 @@ def assignment_results(quiz_id):
                 "max_score": a.max_score,
                 "percentage": a.percentage,
                 "submitted_at": a.submitted_at.isoformat(),
+                "tab_switch_count": a.tab_switch_count or 0,
             }
         )
 
     return jsonify(
+
+
         assignment={
             "id": quiz.id,
             "title": quiz.title,
@@ -2280,6 +2602,22 @@ def submit_attempt(attempt_id):
         new_achievements=new_achievements,
     )
 
+@app.route("/attempts/<int:attempt_id>/tab-switch", methods=["POST"])
+@jwt_required()
+def log_tab_switch(attempt_id):
+    """
+    Called by the frontend each time the browser tab loses focus during
+    an in-progress attempt. Purely additive logging - never blocks or
+    affects the attempt itself.
+    """
+    user_id = int(get_jwt_identity())
+    attempt = Attempt.query.filter_by(id=attempt_id, user_id=user_id).first()
+    if not attempt or attempt.submitted_at is not None:
+        return jsonify(error="Attempt not found or already submitted"), 404
+
+    attempt.tab_switch_count = (attempt.tab_switch_count or 0) + 1
+    db.session.commit()
+    return jsonify(tab_switch_count=attempt.tab_switch_count)
 
 def _build_breakdown(attempt):
     """Builds the per-question breakdown list for an attempt, using the
