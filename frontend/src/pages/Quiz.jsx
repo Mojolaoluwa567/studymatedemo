@@ -51,7 +51,14 @@ const Quiz = () => {
       return next;
     });
   };
+  const [showActivityNotice, setShowActivityNotice] = useState(
+    () => localStorage.getItem("studymate_activity_notice_seen") !== "true",
+  );
 
+  const dismissActivityNotice = () => {
+    localStorage.setItem("studymate_activity_notice_seen", "true");
+    setShowActivityNotice(false);
+  };
   const handleSubmit = async (skipConfirm = false) => {
     if (submittedRef.current) return;
 
@@ -372,6 +379,22 @@ const Quiz = () => {
             {formatClock(remaining)}
           </span>
         </div>
+
+        {showActivityNotice && (
+          <div className="bg-surface border border-border rounded-xl px-4 py-2.5 mb-6 flex items-start justify-between gap-3">
+            <p className="text-xs text-muted">
+              Your teacher can see basic activity for this quiz — like whether
+              you switched tabs — alongside your score. It's just a data point,
+              not a grade.
+            </p>
+            <button
+              onClick={dismissActivityNotice}
+              className="text-xs text-muted hover:text-ink shrink-0"
+            >
+              Got it
+            </button>
+          </div>
+        )}
 
         {/* Phase transition banner shown when entering theory section */}
         {phase === "theory" && mcqResult && (

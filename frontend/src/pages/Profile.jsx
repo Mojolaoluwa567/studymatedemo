@@ -122,6 +122,18 @@ const Profile = () => {
         )}
       </div>
 
+      {profile.role === "student" && (
+        <div className="border border-border rounded-xl p-4 mb-8 text-xs text-muted">
+          <p className="font-medium text-ink mb-1">Activity & privacy</p>
+          <p>
+            Teachers can see your quiz completion, scores, and basic activity
+            signals (like whether you switched tabs) for assignments in classes
+            you've joined. This is used to help teachers support students who
+            might be struggling — never to auto-penalize a score.
+          </p>
+        </div>
+      )}
+
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           <StatCard
