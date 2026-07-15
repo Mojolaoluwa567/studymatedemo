@@ -59,8 +59,9 @@ def generate_quiz_job(document_id, difficulty, format_mode, user_id, is_assignme
 
         db.session.commit()
         return {"quiz_id": quiz.id}
-    
-    def send_email_job(fn_name, args):
+
+
+def send_email_job(fn_name, args):
     """
     Runs any send_*_email function from email_utils in the background
     worker process. Doesn't need Flask app context - these functions
@@ -68,5 +69,3 @@ def generate_quiz_job(document_id, difficulty, format_mode, user_id, is_assignme
     """
     import email_utils
     getattr(email_utils, fn_name)(*args)
-    
-

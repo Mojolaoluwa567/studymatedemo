@@ -26,7 +26,6 @@ most people won't bother with unless they're specifically testing this.
 """
 import os
 import logging
-import json
 
 _redis_conn = None
 _queue = None
@@ -64,6 +63,7 @@ def get_queue():
     _queue = Queue("studymate-generation", connection=conn)
     return _queue
 
+
 def has_active_worker():
     """
     Checks if at least one RQ worker process is currently alive and
@@ -82,6 +82,7 @@ def has_active_worker():
     except Exception as e:
         logging.warning(f"Could not check for active RQ workers: {e}")
         return False
+
 
 def enqueue_quiz_generation(document_id, difficulty, format_mode, user_id, is_assignment=False, title=None):
     """
@@ -102,6 +103,7 @@ def enqueue_quiz_generation(document_id, difficulty, format_mode, user_id, is_as
     )
     return job.id
 
+
 def enqueue_email(fn_name, *args):
     """
     Enqueues any of the send_*_email functions from email_utils as a
@@ -112,6 +114,12 @@ def enqueue_email(fn_name, *args):
     """
     queue = get_queue()
     if queue is None or not has_active_worker():
+        import email_utils
+        fn = getattr(email_utils, fn_name)
+        return fn(*args)
+
+    job = queue.enqueue(f"email_utils.{fn_name}", *args)
+    return job.id
 
 
 def get_job_status(job_id):
