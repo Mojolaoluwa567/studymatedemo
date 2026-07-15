@@ -39,7 +39,6 @@ from content_ingestion import (
     extract_text_from_url,
     extract_text_from_youtube,
     extract_text_from_audio,
-    truncate_for_prompt,
 )
 from rag import get_prompt_text_for_document
 from quiz_generator import (
@@ -54,7 +53,7 @@ from quiz_generator import (
     transcribe_audio,
 )
 from grading import grade_mcq, grade_theory_batch, explain_mistakes_batch
-from email_utils import send_email, send_welcome_email, send_password_reset_email, send_login_notification_email, send_achievement_email
+from email_utils import send_password_reset_email
 from study_aids import generate_summary, generate_key_concepts, generate_flashcards, generate_explainer
 from achievements import (
     compute_stats,

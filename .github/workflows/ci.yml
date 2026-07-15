@@ -72,8 +72,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Dry-run migrations (SQL preview, no DB touched)
+      - name: Apply all migrations to a fresh throwaway database
         env:
           SECRET_KEY: ci-test-secret
           JWT_SECRET_KEY: ci-test-jwt-secret
-        run: flask db upgrade --sql
+          DATABASE_URL: "sqlite:///ci_migration_check.db"
+        run: flask db upgrade

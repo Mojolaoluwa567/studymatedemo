@@ -16,7 +16,7 @@ def generate_results_pdf_reportlab(attempt, quiz, breakdown, student_username):
     from reportlab.lib.colors import HexColor, white, black
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
     from reportlab.lib.units import cm
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
@@ -31,7 +31,6 @@ def generate_results_pdf_reportlab(attempt, quiz, breakdown, student_username):
     title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=20, textColor=ACCENT, spaceAfter=4)
     sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontSize=10, textColor=MID_GRAY, spaceAfter=12)
     section_style = ParagraphStyle("section", parent=styles["Heading2"], fontSize=13, textColor=black, spaceBefore=16, spaceAfter=8)
-    body_style = ParagraphStyle("body", parent=styles["Normal"], fontSize=10, spaceAfter=6)
     q_style = ParagraphStyle("q", parent=styles["Normal"], fontSize=10, spaceAfter=4, leftIndent=12)
 
     story = []
@@ -93,7 +92,7 @@ def generate_study_guide_pdf_reportlab(document, summary, key_concepts, flashcar
     """
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.colors import HexColor, white
+    from reportlab.lib.colors import HexColor
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
     from reportlab.lib.units import cm
 

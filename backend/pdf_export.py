@@ -11,7 +11,7 @@ libraries WeasyPrint depends on (Pango, Cairo, GDK-Pixbuf). Render's
 default Python runtime doesn't include these unless explicitly installed,
 so this fallback is not theoretical - keep it working, don't remove it.
 """
-import io
+
 import logging
 from datetime import datetime
 from html import escape
@@ -170,7 +170,7 @@ def generate_study_guide_pdf(document, summary, key_concepts, flashcards):
 
 
 def _generate_results_pdf_weasyprint(attempt, quiz, breakdown, student_username):
-    from weasyprint import HTML, CSS
+    from weasyprint import HTML
 
     percentage = attempt.percentage or 0
     grade = (

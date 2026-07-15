@@ -4,7 +4,6 @@ worker.py` process, not the Flask web process). Each job function needs
 its own Flask app context to touch the database, since it's not running
 inside a normal request.
 """
-import logging
 
 
 def generate_quiz_job(document_id, difficulty, format_mode, user_id, is_assignment, title):

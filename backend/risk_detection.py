@@ -8,7 +8,7 @@ kept separate from the scoring itself so the actual risk determination
 stays transparent and auditable, not hidden inside an LLM call.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from models import Attempt, StudySession
 from quiz_generator import get_client, MODEL

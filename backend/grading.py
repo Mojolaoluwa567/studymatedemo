@@ -7,7 +7,6 @@ score (0..max marks) and short feedback.
 """
 
 import json
-import os
 from dotenv import load_dotenv
 from quiz_generator import get_client, MODEL, _parse_json_array
 

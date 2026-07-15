@@ -173,7 +173,6 @@ def test_inactive_student_flagged(app, db):
 def test_no_assignments_in_class_returns_none(app, db):
     """If the class has no tagged assignments at all, there's nothing to
     assess risk against - should return None, not crash on empty data."""
-    teacher = _make_user(db, "teacher7")
     student = _make_user(db, "student7")
 
     risk = assess_student_risk(student.id, class_quiz_ids=[])
