@@ -721,7 +721,7 @@ def bulk_upload_documents():
                 file_bytes = None
                 text_content, page_count = extract_text_from_docx(file.stream)
 
-           title = file.filename.rsplit(".", 1)[0]
+            title = file.filename.rsplit(".", 1)[0]
             doc = Document(
                 user_id=user_id,
                 title=title,
@@ -755,6 +755,7 @@ def bulk_upload_documents():
                 "title": doc.title,
                 "page_count": page_count,
             })
+
         except Exception as e:
             logging.error(f"Bulk upload failed for {file.filename}: {e}")
             results.append({
@@ -1065,7 +1066,6 @@ def delete_document(document_id):
     # every Quiz/Question/Attempt/Answer/StudySession tied to this document.
     db.session.delete(document)
     db.session.commit()
-    return jsonify(message="Document deleted")
     return jsonify(message="Document deleted")
 
 

@@ -12,7 +12,6 @@ import {
   Users2,
   Trophy,
   TrendingUp,
-  UploadCloud,
 } from "lucide-react";
 import { api } from "../api";
 import toast from "react-hot-toast";
@@ -118,17 +117,6 @@ const Layout = ({ children }) => {
   const isActive = (to) =>
     location.pathname === to || location.pathname.startsWith(`${to}/`);
 
-  const UploadShortcut = () =>
-    role !== "teacher" && (
-      <Link
-        to="/dashboard#upload"
-        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm bg-accent text-bg font-medium hover:opacity-90 transition-opacity mb-2"
-      >
-        <UploadCloud size={16} />
-        Upload document
-      </Link>
-    );
-
   const SidebarContent = () => (
     <>
       <Link to="/dashboard" className="flex items-center gap-2 px-2 mb-8">
@@ -153,7 +141,7 @@ const Layout = ({ children }) => {
           </Link>
         ))}
       </nav>
-      <UploadShortcut />
+
       <div className="pt-4 mt-4 border-t border-border flex items-center justify-between px-2">
         <ThemeToggle />
         <button
@@ -225,7 +213,7 @@ const Layout = ({ children }) => {
                 </Link>
               ))}
             </nav>
-            <UploadShortcut />
+
             <div className="pt-4 mt-4 border-t border-border flex items-center justify-between px-2">
               <ThemeToggle />
               <button
