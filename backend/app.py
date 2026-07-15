@@ -294,30 +294,14 @@ def google_auth():
             db.session.add(user)
             db.session.commit()
 
-            try:
-                import threading
-                threading.Thread(
-                    target=send_welcome_email,
-                    args=(email, username, role),
-                    daemon=True,
-                ).start()
-            except Exception as e:
-                logging.warning(
-                    f"Welcome email failed for Google signup {username}: {e}"
-                )
+            from jobs import enqueue_email
+            enqueue_email("send_welcome_email", email, username, role)
 
     access_token = create_access_token(identity=str(user.id))
 
-    try:
-        login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
-        import threading
-        threading.Thread(
-            target=send_login_notification_email,
-            args=(user.email, user.username, login_time_str),
-            daemon=True,
-        ).start()
-    except Exception as e:
-        logging.warning(f"Login notification email failed for Google login {user.username}: {e}")
+    from jobs import enqueue_email
+    login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    enqueue_email("send_login_notification_email", user.email, user.username, login_time_str)
 
     return jsonify(
         access_token=access_token,
@@ -374,30 +358,16 @@ def signup():
     db.session.commit()
 
     # Fire-and-forget welcome email - don't let email failure block signup
-    try:
-        import threading
-        threading.Thread(
-            target=send_welcome_email,
-            args=(email.lower(), username, role),
-            daemon=True,
-        ).start()
-    except Exception as e:
-        logging.warning(f"Welcome email failed for {username}: {e}")
+    from jobs import enqueue_email
+    enqueue_email("send_welcome_email", email.lower(), username, role)
 
     access_token = create_access_token(identity=str(user.id))
 
     # Treat signup as an implicit first login - send the same
     # sign-in notification that /login and /auth/google send.
-    try:
-        login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
-        import threading
-        threading.Thread(
-            target=send_login_notification_email,
-            args=(user.email, user.username, login_time_str),
-            daemon=True,
-        ).start()
-    except Exception as e:
-        logging.warning(f"Login notification email failed for new signup {username}: {e}")
+    from jobs import enqueue_email
+    login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    enqueue_email("send_login_notification_email", user.email, user.username, login_time_str)
 
     return jsonify(
         message="User created successfully",
@@ -424,16 +394,9 @@ def login():
     if user and bcrypt.check_password_hash(user.password, password):
         access_token = create_access_token(identity=str(user.id))
 
-        try:
-            login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
-            import threading
-            threading.Thread(
-                target=send_login_notification_email,
-                args=(user.email, user.username, login_time_str),
-                daemon=True,
-            ).start()
-        except Exception as e:
-            logging.warning(f"Login notification email failed for {user.username}: {e}")
+        from jobs import enqueue_email
+        login_time_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+        enqueue_email("send_login_notification_email", user.email, user.username, login_time_str)
 
         return jsonify(
             message="Login successful",
@@ -2542,21 +2505,15 @@ def submit_attempt(attempt_id):
     breakdown = _build_breakdown(attempt)
 
     if new_achievements:
+        from jobs import enqueue_email
         user = db.session.get(User, user_id)
         for ach in new_achievements:
-            try:
-                import threading
-                threading.Thread(
-                    target=send_achievement_email,
-                    args=(
-                        user.email, user.username,
-                        ach.get("name", ach.get("key", "New Achievement")),
-                        ach.get("description", "You've hit a new milestone!"),
-                    ),
-                    daemon=True,
-                ).start()
-            except Exception as e:
-                logging.warning(f"Achievement email failed for {user.username}: {e}")
+            enqueue_email(
+                "send_achievement_email",
+                user.email, user.username,
+                ach.get("name", ach.get("key", "New Achievement")),
+                ach.get("description", "You've hit a new milestone!"),
+            )
 
     return jsonify(
         attempt_id=attempt.id,

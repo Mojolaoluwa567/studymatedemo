@@ -82,6 +82,37 @@ def enqueue_quiz_generation(document_id, difficulty, format_mode, user_id, is_as
     )
     return job.id
 
+def enqueue_email(fn_name, *args):
+    """
+    Enqueues any of the send_*_email functions from email_utils as a
+    background job, instead of a raw daemon thread. Daemon threads get
+    killed instantly (no exception, no log) if the gunicorn worker
+    recycles or the process restarts mid-send - which happens often on
+    a frequently-redeployed app - silently dropping emails with zero
+    trace. RQ jobs live in Redis and survive the web process entirely,
+    so a mid-flight deploy doesn't lose the email.
+
+    Falls back to sending synchronously (blocking the request briefly,
+    ~1-3 seconds) if Redis isn't available - still correct, just not async.
+    """
+    queue = get_queue()
+    if queue is None:
+        # No Redis - fall back to sending synchronously right here rather
+        # than silently dropping the email or using an unreliable thread.
+        import email_utils
+        try:
+            getattr(email_utils, fn_name)(*args)
+        except Exception as e:
+            logging.warning(f"Synchronous email fallback failed for {fn_name}: {e}")
+        return None
+
+    job = queue.enqueue(
+        "jobs_worker.send_email_job",
+        fn_name, args,
+        job_timeout="30s",
+    )
+    return job.id
+
 
 def get_job_status(job_id):
     """
