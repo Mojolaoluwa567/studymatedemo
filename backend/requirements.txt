@@ -25,3 +25,4 @@ pytest
 pytest-flask
 ruff
 sentry-sdk[flask]
+boto3

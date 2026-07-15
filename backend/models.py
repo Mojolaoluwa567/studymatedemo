@@ -48,7 +48,7 @@ class Document(db.Model):
     page_count = db.Column(db.Integer, default=0)
     # Raw PDF bytes stored for in-browser PDF viewer in the Read tab.
     # Only populated for PDF uploads; null for text/URL/YouTube/audio sources.
-    pdf_data = db.Column(db.LargeBinary, nullable=True)
+    pdf_storage_key = db.Column(db.String(255), nullable=True)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # "pdf" | "docx" | "text" | "url" - lets the frontend show the right

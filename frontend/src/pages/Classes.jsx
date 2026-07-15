@@ -109,7 +109,9 @@ const ClassAnnouncements = ({ classId, isTeacher }) => {
 
 const Classes = () => {
   usePageTitle("Classes");
-  const [role, setRole] = useState(null);
+  const [role, setRole] = useState(
+    () => localStorage.getItem("studymate_role") || null,
+  );
   const [classes, setClasses] = useState(null);
   const [error, setError] = useState("");
   const [newName, setNewName] = useState("");
@@ -122,7 +124,10 @@ const Classes = () => {
   const load = () => {
     api
       .get("/profile")
-      .then((p) => setRole(p.role))
+      .then((p) => {
+        setRole(p.role);
+        localStorage.setItem("studymate_role", p.role);
+      })
       .catch(() => {});
     api
       .get("/classes")

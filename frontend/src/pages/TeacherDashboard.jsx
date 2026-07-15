@@ -683,6 +683,7 @@ const TeacherDashboard = () => {
   const [error, setError] = useState("");
   const [viewingResultsFor, setViewingResultsFor] = useState(null);
   const [reviewingDraftId, setReviewingDraftId] = useState(null);
+  const [deletingDocId, setDeletingDocId] = useState(null);
 
   const loadAll = async () => {
     try {
@@ -714,6 +715,51 @@ const TeacherDashboard = () => {
   const handlePublished = () => {
     setReviewingDraftId(null);
     loadAll();
+  };
+
+  const handleDeleteDocument = (doc) => {
+    toast(
+      (t) => (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium">Delete "{doc.title}"?</p>
+          <p className="text-xs text-muted">
+            Removes all assignments, attempts, and history tied to it. Can't be
+            undone.
+          </p>
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                doDeleteDocument(doc);
+              }}
+              className="text-xs bg-incorrect text-bg rounded px-3 py-1.5 font-medium"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="text-xs border border-border rounded px-3 py-1.5"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 10000 },
+    );
+  };
+
+  const doDeleteDocument = async (doc) => {
+    setDeletingDocId(doc.id);
+    try {
+      await api.delete(`/documents/${doc.id}`);
+      toast.success("Document deleted");
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeletingDocId(null);
+    }
   };
 
   return (
@@ -839,10 +885,20 @@ const TeacherDashboard = () => {
           {documents.map((doc) => (
             <div
               key={doc.id}
-              className="bg-surface border border-border rounded-xl p-4"
+              className="card bg-surface border border-border rounded-xl p-4 flex flex-col gap-2"
             >
-              <h3 className="font-medium leading-snug">{doc.title}</h3>
-              <p className="text-xs text-muted mt-1 font-mono">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-medium leading-snug">{doc.title}</h3>
+                <button
+                  onClick={() => handleDeleteDocument(doc)}
+                  disabled={deletingDocId === doc.id}
+                  className="text-muted hover:text-incorrect transition-colors shrink-0 disabled:opacity-50"
+                  aria-label={`Delete ${doc.title}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-muted font-mono">
                 {doc.page_count} page{doc.page_count === 1 ? "" : "s"} ·{" "}
                 {formatDate(doc.uploaded_at)}
               </p>

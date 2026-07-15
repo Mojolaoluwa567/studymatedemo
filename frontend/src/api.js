@@ -16,9 +16,22 @@ async function handle(response) {
     data = null;
   }
   if (!response.ok) {
-    const message = data?.error || data?.msg || "Something went wrong.";
+    // Errors come in two shapes depending on which part of the backend
+    // produced them: most routes return a plain string ({"error": "..."}),
+    // but the global 404/429/500 handlers return a structured object
+    // ({"error": {"code": "...", "message": "..."}}). Handle both so a
+    // real server error never renders as the literal text "[object Object]".
+    let message = "Something went wrong.";
+    if (typeof data?.error === "string") {
+      message = data.error;
+    } else if (data?.error?.message) {
+      message = data.error.message;
+    } else if (data?.msg) {
+      message = data.msg;
+    }
     const error = new Error(message);
     error.status = response.status;
+    error.code = data?.error?.code;
     throw error;
   }
   return data;

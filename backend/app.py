@@ -646,9 +646,21 @@ def upload_document():
         text_content=text_content,
         page_count=page_count,
         source_type=source_type,
-        pdf_data=file_bytes if source_type == "pdf" else None,
     )
     db.session.add(document)
+    db.session.flush()  # get document.id for the storage key
+
+    if source_type == "pdf" and file_bytes:
+        from storage import upload_file
+        storage_key = f"documents/{document.id}.pdf"
+        try:
+            upload_file(file_bytes, storage_key)
+            document.pdf_storage_key = storage_key
+        except Exception as e:
+            logging.warning(f"PDF upload to storage failed for document {document.id}: {e}")
+            # Not fatal - the document still works, just without the
+            # original-PDF Read-tab view for this one upload.
+
     db.session.commit()
 
     try:
@@ -709,7 +721,7 @@ def bulk_upload_documents():
                 file_bytes = None
                 text_content, page_count = extract_text_from_docx(file.stream)
 
-            title = file.filename.rsplit(".", 1)[0]
+           title = file.filename.rsplit(".", 1)[0]
             doc = Document(
                 user_id=user_id,
                 title=title,
@@ -717,10 +729,18 @@ def bulk_upload_documents():
                 text_content=text_content,
                 page_count=page_count,
                 source_type=source_type,
-                pdf_data=file_bytes if source_type == "pdf" else None,
             )
             db.session.add(doc)
             db.session.flush()
+
+            if source_type == "pdf" and file_bytes:
+                from storage import upload_file
+                storage_key = f"documents/{doc.id}.pdf"
+                try:
+                    upload_file(file_bytes, storage_key)
+                    doc.pdf_storage_key = storage_key
+                except Exception as e:
+                    logging.warning(f"PDF upload to storage failed for document {doc.id}: {e}")
 
             try:
                 from rag import embed_document_chunks
@@ -994,7 +1014,7 @@ def get_document(document_id):
         text_content=document.text_content,
         source_type=document.source_type,
         source_url=document.source_url,
-        has_pdf=bool(document.pdf_data),
+        has_pdf=bool(document.pdf_storage_key),
         uploaded_at=document.uploaded_at.isoformat(),
     )
 
@@ -1003,30 +1023,30 @@ def get_document(document_id):
 @jwt_required()
 def serve_document_file(document_id):
     """
-    Serves the original uploaded PDF bytes so the Read tab can render it in
-    a real PDF viewer instead of showing raw extracted text. Only available
-    for PDF-sourced documents - other source types (text, URL, YouTube,
-    audio) never had an original file to store.
+    Redirects to a short-lived signed URL for the original PDF in R2, so
+    the Read tab's iframe loads it directly from storage instead of
+    proxying the bytes through this server (saves memory/bandwidth here).
 
     Reachable via ?token=... query param (in addition to the normal
     Authorization header) because <iframe src="..."> can't set custom
     headers - see JWT_TOKEN_LOCATION config above.
     """
-    from flask import send_file
-    import io
+    from flask import redirect
     user_id = int(get_jwt_identity())
     document = _get_owned_document(document_id, user_id)
     if not document:
         return jsonify(error="Document not found"), 404
-    if not document.pdf_data:
+    if not document.pdf_storage_key:
         return jsonify(error="No original file available for this document"), 404
 
-    return send_file(
-        io.BytesIO(document.pdf_data),
-        mimetype="application/pdf",
-        as_attachment=False,
-        download_name=document.filename or "document.pdf",
-    )
+    from storage import get_presigned_url
+    try:
+        url = get_presigned_url(document.pdf_storage_key)
+    except Exception as e:
+        logging.error(f"Failed to generate signed URL for document {document_id}: {e}")
+        return jsonify(error="Could not load the original file"), 502
+
+    return redirect(url)
 
 
 @app.route("/documents/<int:document_id>", methods=["DELETE"])
@@ -1037,8 +1057,15 @@ def delete_document(document_id):
     if not document:
         return jsonify(error="Document not found"), 404
 
+    if document.pdf_storage_key:
+        from storage import delete_file
+        delete_file(document.pdf_storage_key)
+
+    # Cascades configured on the model relationships take care of deleting
+    # every Quiz/Question/Attempt/Answer/StudySession tied to this document.
     db.session.delete(document)
     db.session.commit()
+    return jsonify(message="Document deleted")
     return jsonify(message="Document deleted")
 
 
@@ -3122,6 +3149,11 @@ def admin_delete_content(document_id):
     document = db.session.get(Document, document_id)
     if not document:
         return jsonify(error="Document not found"), 404
+
+    if document.pdf_storage_key:
+        from storage import delete_file
+        delete_file(document.pdf_storage_key)
+
     db.session.delete(document)
     db.session.commit()
     return jsonify(message="Document deleted")
