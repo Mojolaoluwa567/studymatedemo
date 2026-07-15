@@ -64,15 +64,35 @@ def get_queue():
     _queue = Queue("studymate-generation", connection=conn)
     return _queue
 
+def has_active_worker():
+    """
+    Checks if at least one RQ worker process is currently alive and
+    listening. If not, enqueueing a job would leave it stuck in Redis
+    forever with nothing to process it - better to run it synchronously
+    right here than silently drop it. Self-healing: the moment a real
+    worker process is added later, this starts returning True and jobs
+    switch to running async automatically, with no code changes needed.
+    """
+    conn = get_redis_connection()
+    if conn is None:
+        return False
+    try:
+        from rq import Worker
+        return len(Worker.all(connection=conn)) > 0
+    except Exception as e:
+        logging.warning(f"Could not check for active RQ workers: {e}")
+        return False
 
 def enqueue_quiz_generation(document_id, difficulty, format_mode, user_id, is_assignment=False, title=None):
     """
-    Enqueues quiz generation as a background job. Returns the job_id.
-    The actual work happens in jobs_worker.generate_quiz_job, running in
-    a separate `python3 worker.py` process.
+    Enqueues quiz generation as a background job. Returns the job_id, or
+    None if there's no queue OR no active worker to process it - the
+    caller (create_quiz route) already falls back to synchronous
+    generation when this returns None, so this degrades gracefully either
+    way rather than silently hanging.
     """
     queue = get_queue()
-    if queue is None:
+    if queue is None or not has_active_worker():
         return None
 
     job = queue.enqueue(
@@ -85,33 +105,13 @@ def enqueue_quiz_generation(document_id, difficulty, format_mode, user_id, is_as
 def enqueue_email(fn_name, *args):
     """
     Enqueues any of the send_*_email functions from email_utils as a
-    background job, instead of a raw daemon thread. Daemon threads get
-    killed instantly (no exception, no log) if the gunicorn worker
-    recycles or the process restarts mid-send - which happens often on
-    a frequently-redeployed app - silently dropping emails with zero
-    trace. RQ jobs live in Redis and survive the web process entirely,
-    so a mid-flight deploy doesn't lose the email.
-
-    Falls back to sending synchronously (blocking the request briefly,
-    ~1-3 seconds) if Redis isn't available - still correct, just not async.
+    background job, instead of a raw daemon thread. Falls back to
+    sending synchronously (blocking ~1-3 seconds) if there's no Redis,
+    or no active worker to process the queue - correct either way, just
+    not async without a real worker running.
     """
     queue = get_queue()
-    if queue is None:
-        # No Redis - fall back to sending synchronously right here rather
-        # than silently dropping the email or using an unreliable thread.
-        import email_utils
-        try:
-            getattr(email_utils, fn_name)(*args)
-        except Exception as e:
-            logging.warning(f"Synchronous email fallback failed for {fn_name}: {e}")
-        return None
-
-    job = queue.enqueue(
-        "jobs_worker.send_email_job",
-        fn_name, args,
-        job_timeout="30s",
-    )
-    return job.id
+    if queue is None or not has_active_worker():
 
 
 def get_job_status(job_id):
