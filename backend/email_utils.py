@@ -1,18 +1,25 @@
 """
-Email sending via Resend's HTTP API.
+Email sending via Brevo's HTTP API.
 
 
 Render (and many PaaS platforms) block outbound raw SMTP traffic on
 standard plans - a plain smtplib connection to Gmail/any SMTP host
 fails with "Network is unreachable" no matter how correctly it's
 configured, since it's a network-level restriction, not a credentials
-or code issue. Resend sends over a normal HTTPS API call instead,
+or code issue. Brevo sends over a normal HTTPS API call instead,
 which works the same as any other outbound API call this app already
 makes (Gemini, R2, etc.) - no special network access needed.
 
-If RESEND_API_KEY is not set, all email functions silently return False
+If BREVO_API_KEY is not set, all email functions silently return False
 and the caller falls back to showing the content directly in the API
 response (dev mode) - the app never breaks from missing email config.
+
+Setup: sign up at brevo.com, verify a single sender email address
+(Settings -> Senders, Domains & Dedicated IPs -> Senders -> Add a
+sender - this is much faster than full domain verification, no DNS
+changes needed), grab an API key from Settings -> API Keys, and set
+BREVO_API_KEY and BREVO_FROM (must be the exact verified sender
+address) as env vars.
 """
 
 import os
@@ -22,39 +29,44 @@ import requests
 
 def send_email(to_address, subject, body_text, body_html=None):
     """
-    Sends an email via Resend's HTTP API. Returns True on success, False
-    if Resend isn't configured or sending fails - caller should fall
+    Sends an email via Brevo's HTTP API. Returns True on success, False
+    if Brevo isn't configured or sending fails - caller should fall
     back to dev-mode behavior (e.g. showing a reset link directly) when
     False.
     """
-    api_key = os.environ.get("RESEND_API_KEY")
+    api_key = os.environ.get("BREVO_API_KEY")
     if not api_key:
         return False
 
-    from_address = os.environ.get("RESEND_FROM", "StudyMate <onboarding@resend.dev>")
+    from_address = os.environ.get("BREVO_FROM", "onboarding@studymate.app")
+    from_name = os.environ.get("BREVO_FROM_NAME", "StudyMate")
 
     payload = {
-        "from": from_address,
-        "to": [to_address],
+        "sender": {"name": from_name, "email": from_address},
+        "to": [{"email": to_address}],
         "subject": subject,
-        "text": body_text,
+        "textContent": body_text,
     }
     if body_html:
-        payload["html"] = body_html
+        payload["htmlContent"] = body_html
 
     try:
         response = requests.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {api_key}"},
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
             json=payload,
             timeout=10,
         )
         if response.status_code >= 400:
-            logging.error(f"Resend email failed: {response.status_code} {response.text}")
+            logging.error(f"Brevo email failed: {response.status_code} {response.text}")
             return False
         return True
     except Exception as e:
-        logging.error(f"Resend email failed: {e}")
+        logging.error(f"Brevo email failed: {e}")
         return False
 
 # ---------------------------------------------------------------------------
