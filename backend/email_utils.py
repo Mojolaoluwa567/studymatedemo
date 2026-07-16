@@ -1,9 +1,6 @@
 """
 Email sending via Resend's HTTP API.
 
-Required .env variable:
-  RESEND_API_KEY=re_Twg25XZN_6zsPbXvWw1EW355t45FfFiPf
-  RESEND_FROM=StudyMate <onboarding@resend.dev>   (or your verified domain)
 
 Render (and many PaaS platforms) block outbound raw SMTP traffic on
 standard plans - a plain smtplib connection to Gmail/any SMTP host
