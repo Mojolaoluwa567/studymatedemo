@@ -167,6 +167,11 @@ class Attempt(db.Model):
     mcq_submitted_at = db.Column(db.DateTime, nullable=True)
     mcq_score = db.Column(db.Float, nullable=True)
     submitted_at = db.Column(db.DateTime, nullable=True)
+    # Soft signal only, not proof of anything - the frontend logs a tick
+    # each time the browser tab loses focus during this attempt (switching
+    # tabs, minimizing, alt-tabbing). Shown to teachers as a data point
+    # alongside the score, never used to auto-flag or penalize.
+    tab_switch_count = db.Column(db.Integer, default=0)
     study_time_seconds = db.Column(db.Integer, default=0)
     total_score = db.Column(db.Float, nullable=True)
     max_score = db.Column(db.Integer, nullable=False)

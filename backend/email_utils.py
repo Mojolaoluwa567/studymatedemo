@@ -1,63 +1,64 @@
 """
-Email sending via SMTP only (Resend removed - direct SMTP with any
-provider: Gmail, Outlook, a custom domain's mail server, etc.)
+Email sending via Resend's HTTP API.
 
-Required .env variables:
-  SMTP_HOST=smtp.gmail.com          (or your provider's SMTP host)
-  SMTP_PORT=587
-  SMTP_USER=your_email@gmail.com
-  SMTP_PASSWORD=your_app_password   (NOT your normal password - see note below)
-  SMTP_FROM=StudyMate <your_email@gmail.com>
+Required .env variable:
+  RESEND_API_KEY=re_xxxxxxxxx
+  RESEND_FROM=StudyMate <onboarding@resend.dev>   (or your verified domain)
 
-Gmail note: Gmail blocks normal password login for SMTP. You need an
-"App Password" instead - generate one at myaccount.google.com/apppasswords
-(requires 2-factor auth enabled on the Google account first).
+Render (and many PaaS platforms) block outbound raw SMTP traffic on
+standard plans - a plain smtplib connection to Gmail/any SMTP host
+fails with "Network is unreachable" no matter how correctly it's
+configured, since it's a network-level restriction, not a credentials
+or code issue. Resend sends over a normal HTTPS API call instead,
+which works the same as any other outbound API call this app already
+makes (Gemini, R2, etc.) - no special network access needed.
 
-If SMTP_HOST is not set, all email functions silently return False and
-the caller falls back to showing the content directly in the API
+If RESEND_API_KEY is not set, all email functions silently return False
+and the caller falls back to showing the content directly in the API
 response (dev mode) - the app never breaks from missing email config.
 """
 
 import os
 import logging
-import smtplib
-from email.message import EmailMessage
+import requests
 
 
 def send_email(to_address, subject, body_text, body_html=None):
     """
-    Sends an email via SMTP. Returns True on success, False if SMTP
-    isn't configured or sending fails - caller should fall back to
-    dev-mode behavior (e.g. showing a reset link directly) when False.
+    Sends an email via Resend's HTTP API. Returns True on success, False
+    if Resend isn't configured or sending fails - caller should fall
+    back to dev-mode behavior (e.g. showing a reset link directly) when
+    False.
     """
-    smtp_host = os.environ.get("SMTP_HOST")
-    if not smtp_host:
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
         return False
 
-    port = int(os.environ.get("SMTP_PORT", 587))
-    username = os.environ.get("SMTP_USER")
-    password = os.environ.get("SMTP_PASSWORD")
-    from_address = os.environ.get("SMTP_FROM", username)
+    from_address = os.environ.get("RESEND_FROM", "StudyMate <onboarding@resend.dev>")
 
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = from_address
-    msg["To"] = to_address
-    msg.set_content(body_text)
+    payload = {
+        "from": from_address,
+        "to": [to_address],
+        "subject": subject,
+        "text": body_text,
+    }
     if body_html:
-        msg.add_alternative(body_html, subtype="html")
+        payload["html"] = body_html
 
     try:
-        with smtplib.SMTP(smtp_host, port, timeout=10) as server:
-            server.starttls()
-            if username and password:
-                server.login(username, password)
-            server.send_message(msg)
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json=payload,
+            timeout=10,
+        )
+        if response.status_code >= 400:
+            logging.error(f"Resend email failed: {response.status_code} {response.text}")
+            return False
         return True
     except Exception as e:
-        logging.error(f"SMTP email failed: {e}")
+        logging.error(f"Resend email failed: {e}")
         return False
-
 
 # ---------------------------------------------------------------------------
 # Email templates
