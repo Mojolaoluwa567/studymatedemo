@@ -48,7 +48,7 @@ def send_email(to_address, subject, body_text, body_html=None):
         msg.add_alternative(body_html, subtype="html")
 
     try:
-        with smtplib.SMTP(smtp_host, port) as server:
+        with smtplib.SMTP(smtp_host, port, timeout=10) as server:
             server.starttls()
             if username and password:
                 server.login(username, password)

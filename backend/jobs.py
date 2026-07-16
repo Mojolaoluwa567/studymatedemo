@@ -107,16 +107,29 @@ def enqueue_quiz_generation(document_id, difficulty, format_mode, user_id, is_as
 def enqueue_email(fn_name, *args):
     """
     Enqueues any of the send_*_email functions from email_utils as a
-    background job, instead of a raw daemon thread. Falls back to
-    sending synchronously (blocking ~1-3 seconds) if there's no Redis,
-    or no active worker to process the queue - correct either way, just
-    not async without a real worker running.
+    background job when a real RQ worker is available. If not, falls
+    back to a background THREAD rather than running inline - email
+    sending must never block the actual signup/login/etc. response,
+    since a slow or hanging SMTP connection would otherwise tie up one
+    of a small number of web workers, potentially making the whole app
+    unresponsive. send_email now has its own timeout (10s) so even in
+    the worst case this can't hang indefinitely.
     """
     queue = get_queue()
     if queue is None or not has_active_worker():
+        import threading
         import email_utils
-        fn = getattr(email_utils, fn_name)
-        return fn(*args)
+
+        def _run():
+            try:
+                getattr(email_utils, fn_name)(*args)
+            except Exception as e:
+                logging.warning(f"Background email thread failed for {fn_name}: {e}")
+
+        threading.Thread(target=_run, daemon=True).start()
+        return None
+    
+
 
     job = queue.enqueue(f"email_utils.{fn_name}", *args)
     return job.id
