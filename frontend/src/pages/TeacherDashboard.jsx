@@ -548,6 +548,14 @@ const ResultsPanel = ({ assignmentId, onClose }) => {
                         · left tab {r.tab_switch_count}×
                       </span>
                     )}
+                    {r.copy_attempt_count > 0 && (
+                      <span
+                        className="text-accent"
+                        title="Number of copy/cut actions detected on the question content during the attempt - not proof of anything, just a data point."
+                      >
+                        · copy {r.copy_attempt_count}×
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

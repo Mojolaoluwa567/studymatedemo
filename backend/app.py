@@ -2199,6 +2199,7 @@ def assignment_results(quiz_id):
                 "percentage": a.percentage,
                 "submitted_at": a.submitted_at.isoformat(),
                 "tab_switch_count": a.tab_switch_count or 0,
+                "copy_attempt_count": a.copy_attempt_count or 0,
             }
         )
 
@@ -2528,18 +2529,40 @@ def submit_attempt(attempt_id):
 @jwt_required()
 def log_tab_switch(attempt_id):
     """
-    Called by the frontend each time the browser tab loses focus during
-    an in-progress attempt. Purely additive logging - never blocks or
-    affects the attempt itself.
+    Called by the frontend during an in-progress attempt to log an
+    integrity signal - either the tab losing focus, or a copy/cut
+    keyboard shortcut or context-menu action on the question content.
+    Purely additive logging - never blocks or affects the attempt itself.
+
+    The frontend only wires up these listeners for assignment (join-code)
+    attempts, never for a student's personal document-based quizzes, but
+    this endpoint also enforces it server-side so a personal attempt can
+    never accumulate these counts even if the frontend check is bypassed.
     """
     user_id = int(get_jwt_identity())
     attempt = Attempt.query.filter_by(id=attempt_id, user_id=user_id).first()
     if not attempt or attempt.submitted_at is not None:
         return jsonify(error="Attempt not found or already submitted"), 404
 
-    attempt.tab_switch_count = (attempt.tab_switch_count or 0) + 1
+    if not attempt.quiz.is_assignment:
+        return jsonify(
+            tab_switch_count=attempt.tab_switch_count or 0,
+            copy_attempt_count=attempt.copy_attempt_count or 0,
+        )
+
+    data = request.get_json(silent=True) or {}
+    event_type = data.get("event_type", "tab_switch")
+
+    if event_type == "copy_attempt":
+        attempt.copy_attempt_count = (attempt.copy_attempt_count or 0) + 1
+    else:
+        attempt.tab_switch_count = (attempt.tab_switch_count or 0) + 1
+
     db.session.commit()
-    return jsonify(tab_switch_count=attempt.tab_switch_count)
+    return jsonify(
+        tab_switch_count=attempt.tab_switch_count or 0,
+        copy_attempt_count=attempt.copy_attempt_count or 0,
+    )
 
 def _build_breakdown(attempt):
     """Builds the per-question breakdown list for an attempt, using the
@@ -2588,7 +2611,7 @@ def get_attempt(attempt_id):
         attempt_id=attempt.id,
         quiz_id=attempt.quiz_id,
         document_id=attempt.quiz.document_id,
-        document_title=attempt.quiz.document.title,
+        document_title=attempt.quiz.document.title if attempt.quiz.document else (attempt.quiz.title if attempt.quiz.is_assignment else "Untitled"),
         difficulty=attempt.quiz.difficulty,
         total_score=attempt.total_score,
         max_score=attempt.max_score,
@@ -2720,14 +2743,19 @@ def list_attempts():
             {
                 "id": a.id,
                 "quiz_id": a.quiz_id,
+                # a.quiz.document is None for assignment quizzes (they aren't
+                # tied to a personal upload) and, rarely, for a quiz whose
+                # source document was since deleted. Either way this must not
+                # 500 the whole list over one row.
                 "document_id": a.quiz.document_id,
-                "document_title": a.quiz.document.title,
+                "document_title": a.quiz.document.title if a.quiz.document else (a.quiz.title if a.quiz.is_assignment else "Untitled"),
                 "difficulty": a.quiz.difficulty,
                 "total_score": a.total_score,
                 "max_score": a.max_score,
                 "percentage": a.percentage,
                 "study_time_seconds": a.study_time_seconds,
                 "submitted_at": a.submitted_at.isoformat(),
+                "is_assignment": a.quiz.is_assignment,
             }
             for a in attempts
         ]

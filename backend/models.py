@@ -172,6 +172,11 @@ class Attempt(db.Model):
     # tabs, minimizing, alt-tabbing). Shown to teachers as a data point
     # alongside the score, never used to auto-flag or penalize.
     tab_switch_count = db.Column(db.Integer, default=0)
+    # Same idea as tab_switch_count - a soft signal, not proof of anything.
+    # Only ever incremented for assignment attempts (join-code quizzes); the
+    # frontend never fires this listener for a student's personal,
+    # document-based quizzes.
+    copy_attempt_count = db.Column(db.Integer, default=0)
     study_time_seconds = db.Column(db.Integer, default=0)
     total_score = db.Column(db.Float, nullable=True)
     max_score = db.Column(db.Integer, nullable=False)

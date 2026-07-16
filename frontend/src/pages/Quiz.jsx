@@ -253,20 +253,43 @@ const Quiz = () => {
   }, [quizId]);
 
   useEffect(() => {
+    // Both listeners are integrity signals for teacher-assigned quizzes
+    // only. A student's personal, document-based quiz never reports this -
+    // there's nothing to police there.
+    const isAssignmentAttempt = () => !!quizRef.current?.is_assignment;
+    const canLog = () =>
+      isAssignmentAttempt() &&
+      attemptIdRef.current &&
+      phaseRef.current !== "submitted";
+
     const handleVisibilityChange = () => {
-      if (
-        document.hidden &&
-        attemptIdRef.current &&
-        phaseRef.current !== "submitted"
-      ) {
+      if (document.hidden && canLog()) {
         api
-          .post(`/attempts/${attemptIdRef.current}/tab-switch`, {})
+          .post(`/attempts/${attemptIdRef.current}/tab-switch`, {
+            event_type: "tab_switch",
+          })
           .catch(() => {});
       }
     };
+
+    const handleCopyOrCut = () => {
+      if (canLog()) {
+        api
+          .post(`/attempts/${attemptIdRef.current}/tab-switch`, {
+            event_type: "copy_attempt",
+          })
+          .catch(() => {});
+      }
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
+    document.addEventListener("copy", handleCopyOrCut);
+    document.addEventListener("cut", handleCopyOrCut);
+    return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("copy", handleCopyOrCut);
+      document.removeEventListener("cut", handleCopyOrCut);
+    };
   }, []);
 
   // Keyboard shortcuts: arrow keys to move between questions, number keys
