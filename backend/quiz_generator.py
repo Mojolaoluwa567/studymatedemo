@@ -144,6 +144,40 @@ PATTERN_TRAINER_MODES = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Theory Only — exam prep, no MCQs. One combined set: 5 Hard-depth +
+# 10 Difficult-depth theory questions in a single sitting.
+# ---------------------------------------------------------------------------
+THEORY_ONLY_MODES = {
+    5: {
+        "theory_count": 5,
+        "theory_marks": 5,
+        "time_limit_minutes": 40,
+    },
+    10: {
+        "theory_count": 10,
+        "theory_marks": 4,
+        "time_limit_minutes": 75,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Essay Only — full written exam simulation, no MCQs.
+# Same 30/60 format-choice pattern as the other stages.
+# ---------------------------------------------------------------------------
+ESSAY_ONLY_MODES = {
+    60: {
+        "essay_count": 60,
+        "essay_marks": 2,
+        "time_limit_minutes": 100,
+    },
+    30: {
+        "essay_count": 30,
+        "essay_marks": 4,
+        "time_limit_minutes": 70,
+    },
+}
+
 
 def get_quiz_plan(difficulty, format_mode=60):
     """
@@ -209,6 +243,34 @@ def get_quiz_plan(difficulty, format_mode=60):
             "time_limit_minutes": cfg["time_limit_minutes"],
             "total_marks": total,
             "num_questions": cfg["mcq_count"],
+            "format_mode": format_mode,
+        }
+    
+    if difficulty == "theory_only":
+        cfg = THEORY_ONLY_MODES.get(format_mode, THEORY_ONLY_MODES[5])
+        return {
+            "difficulty": "theory_only",
+            "mcq_count": 0,
+            "mcq_marks": 0,
+            "theory_count": cfg["theory_count"],
+            "theory_marks": cfg["theory_marks"],
+            "time_limit_minutes": cfg["time_limit_minutes"],
+            "total_marks": cfg["theory_count"] * cfg["theory_marks"],
+            "num_questions": cfg["theory_count"],
+            "format_mode": format_mode,
+        }
+
+    if difficulty == "essay_only":
+        cfg = ESSAY_ONLY_MODES.get(format_mode, ESSAY_ONLY_MODES[60])
+        return {
+            "difficulty": "essay_only",
+            "mcq_count": 0,
+            "mcq_marks": 0,
+            "theory_count": cfg["essay_count"],
+            "theory_marks": cfg["essay_marks"],
+            "time_limit_minutes": cfg["time_limit_minutes"],
+            "total_marks": cfg["essay_count"] * cfg["essay_marks"],
+            "num_questions": cfg["essay_count"],
             "format_mode": format_mode,
         }
 
@@ -310,6 +372,44 @@ def _build_prompt(document_text, plan):
             "paragraph, testing understanding of one specific concept from the "
             "material. Provide a 'model_answer' field with the key points a "
             "correct answer should cover, for grading reference."
+        )
+
+    elif difficulty == "theory_only":
+        depth = "Hard" if plan.get("format_mode") == 5 else "Difficult"
+        style = (
+            f"Generate exactly {theory_count} theory questions based strictly "
+            f"on the study material below, with NO multiple-choice questions.\n\n"
+            f"This is a theory-only exam-prep set at {depth} depth. "
+            + (
+                "Keep these lighter than a full essay - focused 'Explain...' "
+                "or 'Briefly discuss...' questions answerable in a short "
+                "paragraph, each testing one specific concept."
+                if depth == "Hard"
+                else "These should be full essay prompts - 'Discuss...', "
+                "'Compare and contrast...', 'Critically examine...', or "
+                "'Evaluate...' - requiring a multi-paragraph answer that "
+                "synthesizes two or more related concepts from the material."
+            )
+            + "\n\nProvide a 'model_answer' field for every question with the "
+            "key marking points a correct answer should cover, for grading "
+            "reference."
+        )
+
+    elif difficulty == "essay_only":
+        style = (
+            f"Generate exactly {theory_count} essay-style questions based "
+            "strictly on the study material below, with NO multiple-choice "
+            "questions.\n\n"
+            "This is a full written exam simulation. Every question must be "
+            "a genuine essay prompt - 'Discuss...', 'Compare and contrast...', "
+            "'Critically examine...', or 'Evaluate...' - requiring a "
+            "multi-paragraph answer that synthesizes two or more related "
+            "concepts from the material, not a short definition. Vary the "
+            "concepts tested across questions so the set covers the material "
+            "broadly rather than repeating the same angle.\n\n"
+            "Provide a 'model_answer' field for every question with the key "
+            "marking points a strong essay answer must cover, for grading "
+            "reference."
         )
 
     else:  # difficult

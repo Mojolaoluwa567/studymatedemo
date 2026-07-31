@@ -60,6 +60,7 @@ const Quiz = () => {
     localStorage.setItem("studymate_activity_notice_seen", "true");
     setShowActivityNotice(false);
   };
+
   const handleSubmit = async (skipConfirm = false) => {
     if (submittedRef.current) return;
 
@@ -191,9 +192,15 @@ const Quiz = () => {
         quizRef.current = quizData;
         attemptIdRef.current = attempt.attempt_id;
 
-        // Detect gated flow: quiz has both MCQ and theory questions
+        // Detect gated flow: quiz has BOTH MCQ and theory questions (Hard/
+        // Difficult). A pure theory_only/essay_only quiz has theory
+        // questions but zero MCQs - it must NOT enter the gated flow, or
+        // the "mcq" phase ends up with an empty question list and crashes.
+        const hasMcq = quizData.questions.some((q) => q.type === "mcq");
         const hasTheory = quizData.questions.some((q) => q.type === "theory");
-        if (hasTheory) {
+        const useGatedFlow = hasMcq && hasTheory;
+
+        if (useGatedFlow) {
           if (attempt.mcq_already_submitted) {
             // Resuming an attempt where MCQ was already submitted before
             // they navigated away or refreshed — skip straight to the
@@ -205,6 +212,7 @@ const Quiz = () => {
               quizData.questions.filter((q) => q.type === "theory"),
             );
           } else {
+            // Fresh gated attempt — start in the MCQ section.
             setPhase("mcq");
             phaseRef.current = "mcq";
           }
@@ -402,24 +410,9 @@ const Quiz = () => {
           >
             {formatClock(remaining)}
           </span>
-          {quiz?.is_assignment && showActivityNotice && (
-            <div className="bg-surface border border-border rounded-xl px-4 py-2.5 mb-6 flex items-start justify-between gap-3">
-              <p className="text-xs text-muted">
-                Your teacher can see basic activity for this quiz — like whether
-                you switched tabs — alongside your score. It's just a data
-                point, not a grade.
-              </p>
-              <button
-                onClick={dismissActivityNotice}
-                className="text-xs text-muted hover:text-ink shrink-0"
-              >
-                Got it
-              </button>
-            </div>
-          )}
         </div>
 
-        {showActivityNotice && (
+        {quiz?.is_assignment && showActivityNotice && (
           <div className="bg-surface border border-border rounded-xl px-4 py-2.5 mb-6 flex items-start justify-between gap-3">
             <p className="text-xs text-muted">
               Your teacher can see basic activity for this quiz — like whether

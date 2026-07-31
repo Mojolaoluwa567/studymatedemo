@@ -50,6 +50,8 @@ from quiz_generator import (
     HARD_MODES,
     DIFFICULT_MODES,
     PATTERN_TRAINER_MODES,
+    THEORY_ONLY_MODES,
+    ESSAY_ONLY_MODES,
     transcribe_audio,
 )
 from grading import grade_mcq, grade_theory_batch, explain_mistakes_batch
@@ -1196,6 +1198,8 @@ def quiz_config():
         hard=format_options(HARD_MODES, "hard"),
         difficult=format_options(DIFFICULT_MODES, "difficult"),
         pattern_trainer=format_options(PATTERN_TRAINER_MODES, "lecturer_style"),
+        theory_only=format_options(THEORY_ONLY_MODES, "theory_only"),
+        essay_only=format_options(ESSAY_ONLY_MODES, "essay_only"),
     )
 
 
@@ -1255,8 +1259,10 @@ def create_quiz():
     difficulty = data.get("difficulty")
     format_mode = data.get("format_mode", data.get("easy_mode", 60))
 
-    if difficulty not in ("easy", "hard", "difficult"):
-        return jsonify(error="difficulty must be one of: easy, hard, difficult"), 400
+    if difficulty not in ("easy", "hard", "difficult", "theory_only", "essay_only"):
+        return jsonify(
+            error="difficulty must be one of: easy, hard, difficult, theory_only, essay_only"
+        ), 400
 
     document = _get_owned_document(document_id, user_id)
     if not document:

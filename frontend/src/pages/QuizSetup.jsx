@@ -38,6 +38,14 @@ const STAGES = [
       "Upload 3–5 past questions from a lecturer. StudyMate learns how they write and twist questions, then generates new practice questions from your material in that exact pattern.",
     color: "border-muted text-muted",
   },
+  {
+    key: "theory_only",
+    label: "Theory Only",
+    tag: "Essay prep",
+    description:
+      "No MCQs at all — just written/essay questions, AI-graded. A shorter set at Hard depth, or a longer set at Difficult (full essay) depth.",
+    color: "border-accent text-accent",
+  },
 ];
 
 const QuizSetup = () => {
@@ -55,7 +63,10 @@ const QuizSetup = () => {
   const [styleDocumentId, setStyleDocumentId] = useState("");
 
   useEffect(() => {
-    api.get("/quizzes/config").then(setConfig).catch((err) => setError(err.message));
+    api
+      .get("/quizzes/config")
+      .then(setConfig)
+      .catch((err) => setError(err.message));
   }, []);
 
   useEffect(() => {
@@ -63,7 +74,7 @@ const QuizSetup = () => {
       .get("/documents")
       .then((data) => {
         setOtherDocuments(
-          data.documents.filter((d) => String(d.id) !== String(id))
+          data.documents.filter((d) => String(d.id) !== String(id)),
         );
       })
       .catch(() => setOtherDocuments([]));
@@ -90,17 +101,20 @@ const QuizSetup = () => {
     setDifficulty(key);
     setError("");
     if (key === "easy") setFormatMode(40);
+    else if (key === "theory_only") setFormatMode(10);
     else setFormatMode(60);
   };
 
   // Get the available format options for the current stage from config
   const currentFormats = config
-    ? config[difficulty === "lecturer_style" ? "pattern_trainer" : difficulty] ?? []
+    ? (config[
+        difficulty === "lecturer_style" ? "pattern_trainer" : difficulty
+      ] ?? [])
     : [];
 
-  const selectedFormat = currentFormats.find(
-    (f) => f.format_mode === formatMode
-  ) || currentFormats[0];
+  const selectedFormat =
+    currentFormats.find((f) => f.format_mode === formatMode) ||
+    currentFormats[0];
 
   const handleStart = async () => {
     setCreating(true);
@@ -210,45 +224,63 @@ const QuizSetup = () => {
       </div>
 
       {/* Format picker + stats for the selected stage */}
-      {config && difficulty !== "lecturer_style" && currentFormats.length > 0 && (
-        <div className="bg-surface border border-border rounded-xl p-5 mb-6">
-          <p className="text-sm text-muted mb-3 font-mono">Choose a format:</p>
-          <div className="flex flex-wrap gap-3 mb-4">
-            {currentFormats.map((fmt) => (
-              <button
-                key={fmt.format_mode}
-                onClick={() => setFormatMode(fmt.format_mode)}
-                className={`rounded-lg px-4 py-2 border text-sm font-mono transition-colors ${
-                  formatMode === fmt.format_mode
-                    ? "border-accent text-accent bg-accent-soft"
-                    : "border-border text-muted hover:border-muted"
-                }`}
-              >
-                {fmt.mcq_count}Q × {fmt.mcq_marks} mark
-                {fmt.mcq_marks > 1 ? "s" : ""}
-              </button>
-            ))}
-          </div>
-          {selectedFormat && (
-            <div className="font-mono text-xs text-muted space-y-1">
-              <p>
-                {selectedFormat.mcq_count} objective questions
-                {selectedFormat.theory_count > 0
-                  ? ` + ${selectedFormat.theory_count} theory questions`
-                  : ""}
-              </p>
-              <p>
-                {selectedFormat.mcq_count * selectedFormat.mcq_marks} objective marks
-                {selectedFormat.theory_count > 0
-                  ? ` + ${selectedFormat.theory_count * selectedFormat.theory_marks} theory marks`
-                  : ""}
-                {" "}= <span className="text-ink">{selectedFormat.total_marks} marks total</span>
-              </p>
-              <p>{selectedFormat.time_limit_minutes} minutes</p>
+      {config &&
+        difficulty !== "lecturer_style" &&
+        currentFormats.length > 0 && (
+          <div className="bg-surface border border-border rounded-xl p-5 mb-6">
+            <p className="text-sm text-muted mb-3 font-mono">
+              Choose a format:
+            </p>
+            <div className="flex flex-wrap gap-3 mb-4">
+              {currentFormats.map((fmt) => (
+                <button
+                  key={fmt.format_mode}
+                  onClick={() => setFormatMode(fmt.format_mode)}
+                  className={`rounded-lg px-4 py-2 border text-sm font-mono transition-colors ${
+                    formatMode === fmt.format_mode
+                      ? "border-accent text-accent bg-accent-soft"
+                      : "border-border text-muted hover:border-muted"
+                  }`}
+                >
+                  {fmt.mcq_count > 0
+                    ? `${fmt.mcq_count}Q × ${fmt.mcq_marks} mark${fmt.mcq_marks > 1 ? "s" : ""}`
+                    : `${fmt.theory_count}Q × ${fmt.theory_marks} marks`}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      )}
+            {selectedFormat && (
+              <div className="font-mono text-xs text-muted space-y-1">
+                <p>
+                  {selectedFormat.mcq_count > 0 &&
+                    `${selectedFormat.mcq_count} objective questions`}
+                  {selectedFormat.mcq_count > 0 &&
+                  selectedFormat.theory_count > 0
+                    ? " + "
+                    : ""}
+                  {selectedFormat.theory_count > 0
+                    ? `${selectedFormat.theory_count} theory questions`
+                    : ""}
+                </p>
+                <p>
+                  {selectedFormat.mcq_count > 0 &&
+                    `${selectedFormat.mcq_count * selectedFormat.mcq_marks} objective marks`}
+                  {selectedFormat.mcq_count > 0 &&
+                  selectedFormat.theory_count > 0
+                    ? " + "
+                    : ""}
+                  {selectedFormat.theory_count > 0
+                    ? `${selectedFormat.theory_count * selectedFormat.theory_marks} theory marks`
+                    : ""}{" "}
+                  ={" "}
+                  <span className="text-ink">
+                    {selectedFormat.total_marks} marks total
+                  </span>
+                </p>
+                <p>{selectedFormat.time_limit_minutes} minutes</p>
+              </div>
+            )}
+          </div>
+        )}
 
       {/* Pattern Trainer config panel */}
       {difficulty === "lecturer_style" && (
@@ -256,7 +288,9 @@ const QuizSetup = () => {
           {/* Format picker for pattern trainer */}
           {config && currentFormats.length > 0 && (
             <div>
-              <p className="text-sm text-muted mb-2 font-mono">Choose a format:</p>
+              <p className="text-sm text-muted mb-2 font-mono">
+                Choose a format:
+              </p>
               <div className="flex flex-wrap gap-3 mb-3">
                 {currentFormats.map((fmt) => (
                   <button
@@ -275,7 +309,8 @@ const QuizSetup = () => {
               </div>
               {selectedFormat && (
                 <p className="font-mono text-xs text-muted">
-                  {selectedFormat.total_marks} marks · {selectedFormat.time_limit_minutes} min · MCQ only
+                  {selectedFormat.total_marks} marks ·{" "}
+                  {selectedFormat.time_limit_minutes} min · MCQ only
                 </p>
               )}
             </div>
@@ -302,7 +337,9 @@ const QuizSetup = () => {
                 onChange={(e) => setStyleDocumentId(e.target.value)}
                 className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent transition-colors"
               >
-                <option value="">Choose a document with past questions...</option>
+                <option value="">
+                  Choose a document with past questions...
+                </option>
                 {otherDocuments.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.title}
@@ -334,7 +371,8 @@ const QuizSetup = () => {
       </button>
       {creating && (
         <p className="text-xs text-muted mt-3">
-          This can take up to a minute for longer quizzes — the AI is writing every question fresh from your material.
+          This can take up to a minute for longer quizzes — the AI is writing
+          every question fresh from your material.
         </p>
       )}
     </Layout>
