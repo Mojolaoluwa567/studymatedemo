@@ -95,6 +95,8 @@ _database_url = os.environ.get(
 )
 if _database_url.startswith("postgres://"):
     _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+if _database_url.startswith("postgresql://"):
+    _database_url = _database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 app.config["SQLALCHEMY_DATABASE_URI"] = _database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB upload limit
@@ -1947,8 +1949,8 @@ def create_assignment():
     format_mode = data.get("format_mode", data.get("easy_mode", 60))
     title = (data.get("title") or "").strip()
 
-    if difficulty not in ("easy", "hard", "difficult"):
-        return jsonify(error="difficulty must be one of: easy, hard, difficult"), 400
+    if difficulty not in ("easy", "hard", "difficult", "theory_only", "essay_only"):
+        return jsonify(error="difficulty must be one of: easy, hard, difficult, theory_only, essay_only"), 400
 
     document = _get_owned_document(document_id, user_id)
     if not document:
@@ -1961,9 +1963,18 @@ def create_assignment():
 
     text_for_prompt = get_prompt_text_for_document(document, f"{difficulty} difficulty quiz covering the whole document")
 
+    prior_questions = [
+        q.question_text
+        for q in Question.query.join(Quiz)
+        .filter(Quiz.document_id == document_id, Quiz.user_id == user_id, Quiz.difficulty == difficulty)
+        .order_by(Quiz.created_at.desc())
+        .limit(40)
+        .all()
+    ]
+
     try:
         plan, generated_questions = generate_quiz_questions(
-            text_for_prompt, difficulty, format_mode
+            text_for_prompt, difficulty, format_mode, avoid_questions=prior_questions
         )
     except ValueError as e:
         logging.error(f"Assignment quiz generation failed: {e}")

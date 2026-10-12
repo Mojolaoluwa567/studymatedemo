@@ -331,7 +331,7 @@ def _build_lecturer_style_prompt(content_text, style_sample_text, plan):
     )
 
 
-def _build_prompt(document_text, plan):
+def _build_prompt(document_text, plan, avoid_questions=None):
     difficulty = plan["difficulty"]
     mcq_count = plan["mcq_count"]
     theory_count = plan.get("theory_count", 0)
@@ -455,7 +455,19 @@ def _build_prompt(document_text, plan):
         + FORMATTING_RULES
     )
 
-    return f"{style}\n\n{schema}\n\n--- STUDY MATERIAL ---\n{document_text}"
+    avoid_block = ""
+    if avoid_questions:
+        prior_list = "\n".join(f"- {q}" for q in avoid_questions[:40])
+        avoid_block = (
+            "\n\nIMPORTANT — VARIETY REQUIREMENT: This student has already "
+            "seen the questions below in a previous attempt on this document. "
+            "Do NOT repeat these questions or ask about the exact same "
+            "specific facts/angles. Draw from different sections, details, "
+            "or angles of the material instead:\n" + prior_list
+        )
+
+    return f"{style}{avoid_block}\n\n{schema}\n\n--- STUDY MATERIAL ---\n{document_text}"
+
 
 
 def _parse_json_array(raw_text):
@@ -575,7 +587,7 @@ def _filter_grounded(questions, source_text):
     return [q for q in questions if _is_grounded(q, source_lower)]
 
 
-def generate_quiz_questions(document_text, difficulty, format_mode=60):
+def generate_quiz_questions(document_text, difficulty, format_mode=60, avoid_questions=None):
     """
     Calls Gemini to generate quiz questions and returns
     (plan, questions_list) where questions_list is a list of dicts:
@@ -583,14 +595,16 @@ def generate_quiz_questions(document_text, difficulty, format_mode=60):
 
     format_mode: 60 = more questions at 1 mark each, 30 = fewer at higher marks.
     All three difficulty tiers (easy/hard/difficult) accept both format options.
+    avoid_questions: optional list of question texts from prior attempts on
+    this document, so the model is explicitly told not to repeat them.
     """
     plan = get_quiz_plan(difficulty, format_mode)
-    prompt = _build_prompt(document_text, plan)
+    prompt = _build_prompt(document_text, plan, avoid_questions=avoid_questions)
 
     response = get_client().models.generate_content(
         model=MODEL,
         contents=prompt,
-        config={"response_mime_type": "application/json"},
+        config={"response_mime_type": "application/json", "temperature": 1.0},
     )
 
     raw_text = response.text
